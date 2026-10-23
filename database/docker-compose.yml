@@ -1,0 +1,15 @@
+services:
+  postgres:
+    build: .
+    container_name: techchallenger-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: techchallenger
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

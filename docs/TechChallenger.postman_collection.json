@@ -1,0 +1,2728 @@
+{
+  "info": {
+    "name": "TechChallenger Fase 1 - Testes de Integração",
+    "_postman_id": "f9a1b2c3-d4e5-6789-abcd-ef0123456789",
+    "description": "Collection de testes de integração completa do TechChallenger Fase 1.\n\nExecute as pastas em ordem (00 → 13). Os scripts de pré-requisição geram CPF, CNPJ e placa válidos a cada execução. Os scripts de teste extraem e salvam IDs automaticamente via pm.collectionVariables.set(), encadeando os fluxos.\n\nPré-requisito: API rodando em http://localhost:5158 e banco inicializado (docker-compose up).\n\nRegras de negócio validadas:\n- Value Objects: Documento (CPF/CNPJ c/ dígito verificador), Placa (AAA9999 ou AAA9A99), Email, Telefone (10-11 dígitos), Dinheiro (não negativo)\n- Status da OS: Recebida → EmDiagnostico → AguardandoAprovacao → EmExecucao → Finalizada → Entregue\n- Estoque: custo médio ponderado; alerta quando abaixo do mínimo\n- Auth: JWT Bearer; POST/PUT/DELETE em Peca e Servico exigem role Adm",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{tokenAdm}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5158",
+      "type": "string"
+    },
+    {
+      "key": "tokenAdm",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenFuncionario",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clienteId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "clientePJId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "veiculoId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "pecaId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "servicoId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "ordemServicoId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "ordemServicoId2",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "servicoSolicitadoId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "pecaSolicitadaId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "cpfGerado",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cnpjGerado",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "placaGerada",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Autenticação",
+      "description": "Obtenção dos tokens JWT. Execute primeiro — os tokens são salvos automaticamente e reutilizados por toda a collection.",
+      "item": [
+        {
+          "name": "01 - Login (Adm)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenAdm', json.token);",
+                  "pm.test('Token Adm extraído', () => pm.expect(json.token).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Auth/login",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"email\": \"adm@oficina.com\",\n  \"senha\": \"Adm@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Login (Funcionário)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('tokenFuncionario', json.token);",
+                  "pm.test('Token Funcionário extraído', () => pm.expect(json.token).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Auth/login",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"email\": \"funcionario@oficina.com\",\n  \"senha\": \"Func@12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "03 - Login inválido (deve retornar 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Auth/login",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"email\": \"inexistente@email.com\",\n  \"senha\": \"SenhaErrada123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - CRUD: Peças (role Adm)",
+      "description": "Cadastro e manutenção de peças do catálogo. POST/PUT/DELETE exigem role Adm. O ID da peça criada é salvo em {{pecaId}} para uso nos fluxos de estoque e OS.",
+      "item": [
+        {
+          "name": "01 - Criar Peça",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('pecaId', json.id.toString());",
+                  "pm.test('ID da peça salvo', () => pm.expect(json.id).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Peca",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Filtro de oleo\",\n  \"descricao\": \"Filtro de oleo para motores 1.0 a 2.0\",\n  \"custo\": 15.00,\n  \"precoVenda\": 35.00\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Listar todas as Peças",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Peca"
+          }
+        },
+        {
+          "name": "03 - Buscar Peça por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('ID confere', () => pm.expect(json.id.toString()).to.eql(pm.collectionVariables.get('pecaId')));",
+                  "pm.test('Nome presente', () => pm.expect(json.nome).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Peca/{{pecaId}}"
+          }
+        },
+        {
+          "name": "04 - Atualizar Peça",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Peca/{{pecaId}}",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Filtro de oleo premium\",\n  \"descricao\": \"Filtro premium para motores 1.0 a 2.0\",\n  \"custo\": 20.00,\n  \"precoVenda\": 45.00\n}"
+            }
+          }
+        },
+        {
+          "name": "05 - Buscar Peça inexistente (deve retornar 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Peca/999999"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - CRUD: Serviços (role Adm)",
+      "description": "Cadastro e manutenção de serviços do catálogo. POST/PUT/DELETE exigem role Adm. O ID do serviço criado é salvo em {{servicoId}} para uso nos fluxos de OS.",
+      "item": [
+        {
+          "name": "01 - Criar Serviço",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('servicoId', json.id.toString());",
+                  "pm.test('ID do serviço salvo', () => pm.expect(json.id).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Servico",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Troca de oleo\",\n  \"precoVenda\": 80.00,\n  \"tempoEstimadoEmMinutos\": 30\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Listar todos os Serviços",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Servico"
+          }
+        },
+        {
+          "name": "03 - Buscar Serviço por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('ID confere', () => pm.expect(json.id.toString()).to.eql(pm.collectionVariables.get('servicoId')));",
+                  "pm.test('Tempo estimado presente', () => pm.expect(json.tempoEstimadoEmMinutos).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Servico/{{servicoId}}"
+          }
+        },
+        {
+          "name": "04 - Atualizar Serviço",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Servico/{{servicoId}}",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Troca de oleo completa\",\n  \"precoVenda\": 95.00,\n  \"tempoEstimadoEmMinutos\": 45\n}"
+            }
+          }
+        },
+        {
+          "name": "05 - Criar Serviço sem autenticação (deve retornar 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Servico",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Servico sem auth\",\n  \"precoVenda\": 50.00,\n  \"tempoEstimadoEmMinutos\": 20\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Estoque: Gestão de Estoque",
+      "description": "Controle de entrada e saída de peças no estoque. Depende de {{pecaId}} criado na pasta 01.",
+      "item": [
+        {
+          "name": "01 - Listar Estoque (antes da entrada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Estoque"
+          }
+        },
+        {
+          "name": "02 - Entrada de Estoque",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Quantidade atualizada', () => pm.expect(json.quantidadeAtual).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Estoque/entrada",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"pecaId\": {{pecaId}},\n  \"quantidade\": 20,\n  \"precoCusto\": 15.00\n}"
+            }
+          }
+        },
+        {
+          "name": "03 - Listar Estoque (após entrada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Estoque"
+          }
+        },
+        {
+          "name": "04 - Baixa de Estoque",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Quantidade reduzida', () => pm.expect(json.quantidadeAtual).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Estoque/baixa",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"pecaId\": {{pecaId}},\n  \"quantidade\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "05 - Baixa maior que estoque disponível (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Estoque/baixa",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"pecaId\": {{pecaId}},\n  \"quantidade\": 99999\n}"
+            }
+          }
+        },
+        {
+          "name": "06 - Repor Estoque (garantir peças para OS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Estoque/entrada",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"pecaId\": {{pecaId}},\n  \"quantidade\": 50,\n  \"precoCusto\": 15.00\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - CRUD: Clientes",
+      "description": "Cadastro e manutenção de clientes. CPF e CNPJ são gerados dinamicamente com dígitos verificadores válidos a cada execução. O ID do cliente PF é salvo em {{clienteId}} e o PJ em {{clientePJId}}.",
+      "item": [
+        {
+          "name": "01 - Criar Cliente (Pessoa Física)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Gera CPF válido com dígitos verificadores",
+                  "function gerarCPF() {",
+                  "    function calcDigito(arr, fator) {",
+                  "        var soma = arr.reduce(function(acc, n, i) { return acc + n * (fator - i); }, 0);",
+                  "        var r = soma % 11;",
+                  "        return r < 2 ? 0 : 11 - r;",
+                  "    }",
+                  "    var base = Array.from({length: 9}, function() { return Math.floor(Math.random() * 10); });",
+                  "    var d1 = calcDigito(base, 10);",
+                  "    var d2 = calcDigito(base.concat(d1), 11);",
+                  "    return base.concat(d1, d2).join('');",
+                  "}",
+                  "pm.collectionVariables.set('cpfGerado', gerarCPF());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('clienteId', json.id.toString());",
+                  "pm.test('ID do cliente PF salvo', () => pm.expect(json.id).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Joao\",\n  \"sobrenome\": \"Silva\",\n  \"telefone\": \"11999990001\",\n  \"email\": \"joao.silva@email.com\",\n  \"numeroDocumento\": \"{{cpfGerado}}\",\n  \"tipoPessoa\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Criar Cliente (Pessoa Jurídica)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Gera CNPJ válido com dígitos verificadores",
+                  "function gerarCNPJ() {",
+                  "    function calcDigito(arr, pesos) {",
+                  "        var soma = arr.reduce(function(acc, n, i) { return acc + n * pesos[i]; }, 0);",
+                  "        var r = soma % 11;",
+                  "        return r < 2 ? 0 : 11 - r;",
+                  "    }",
+                  "    var base = Array.from({length: 8}, function() { return Math.floor(Math.random() * 10); }).concat([0, 0, 0, 1]);",
+                  "    var p1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];",
+                  "    var p2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];",
+                  "    var d1 = calcDigito(base, p1);",
+                  "    var d2 = calcDigito(base.concat(d1), p2);",
+                  "    return base.concat(d1, d2).join('');",
+                  "}",
+                  "pm.collectionVariables.set('cnpjGerado', gerarCNPJ());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('clientePJId', json.id.toString());",
+                  "pm.test('ID do cliente PJ salvo', () => pm.expect(json.id).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Transportadora\",\n  \"sobrenome\": \"Brasil LTDA\",\n  \"telefone\": \"1133330001\",\n  \"email\": \"contato@transportadora.com.br\",\n  \"numeroDocumento\": \"{{cnpjGerado}}\",\n  \"tipoPessoa\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "03 - Listar todos os Clientes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('Ao menos 2 clientes criados', () => pm.expect(pm.response.json().length).to.be.at.least(2));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Cliente"
+          }
+        },
+        {
+          "name": "04 - Buscar Cliente por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('ID confere', () => pm.expect(json.id.toString()).to.eql(pm.collectionVariables.get('clienteId')));",
+                  "pm.test('Nome presente', () => pm.expect(json.nome).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Cliente/{{clienteId}}"
+          }
+        },
+        {
+          "name": "05 - Buscar Cliente por Documento (CPF gerado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Documento confere', () => pm.expect(pm.response.json().numeroDocumento).to.eql(pm.collectionVariables.get('cpfGerado')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Cliente/{{cpfGerado}}"
+          }
+        },
+        {
+          "name": "06 - Atualizar Cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente/{{clienteId}}",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Joao\",\n  \"sobrenome\": \"Silva Atualizado\",\n  \"telefone\": \"11988880001\",\n  \"email\": \"joao.novo@email.com\",\n  \"numeroDocumento\": \"{{cpfGerado}}\",\n  \"tipoPessoa\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "07 - Buscar Cliente inexistente (deve retornar 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Cliente/999999"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - CRUD: Veículos",
+      "description": "Cadastro e manutenção de veículos. A placa Mercosul é gerada dinamicamente (formato ABC1D23) a cada execução. O ID é salvo em {{veiculoId}} para uso nos fluxos de OS.",
+      "item": [
+        {
+          "name": "01 - Criar Veículo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Gera placa no formato Mercosul: ABC1D23",
+                  "function gerarPlacaMercosul() {",
+                  "    var letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "    var l = function() { return letras[Math.floor(Math.random() * 26)]; };",
+                  "    var n = function() { return Math.floor(Math.random() * 10); };",
+                  "    return l() + l() + l() + n() + l() + n() + n();",
+                  "}",
+                  "pm.collectionVariables.set('placaGerada', gerarPlacaMercosul());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('veiculoId', json.id.toString());",
+                  "pm.test('ID do veículo salvo', () => pm.expect(json.id).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Veiculo",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"modelo\": \"Civic\",\n  \"placa\": \"{{placaGerada}}\",\n  \"marca\": \"Honda\",\n  \"ano\": 2022\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Listar todos os Veículos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Veiculo"
+          }
+        },
+        {
+          "name": "03 - Buscar Veículo por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('ID confere', () => pm.expect(json.id.toString()).to.eql(pm.collectionVariables.get('veiculoId')));",
+                  "pm.test('Placa confere', () => pm.expect(json.placa).to.eql(pm.collectionVariables.get('placaGerada')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Veiculo/{{veiculoId}}"
+          }
+        },
+        {
+          "name": "04 - Buscar Veículo por Placa (gerada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Placa confere', () => pm.expect(pm.response.json().placa).to.eql(pm.collectionVariables.get('placaGerada')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Veiculo/placa/{{placaGerada}}"
+          }
+        },
+        {
+          "name": "05 - Atualizar Veículo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Veiculo/{{veiculoId}}",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"modelo\": \"Civic\",\n  \"placa\": \"{{placaGerada}}\",\n  \"marca\": \"Honda\",\n  \"ano\": 2023\n}"
+            }
+          }
+        },
+        {
+          "name": "06 - Buscar Veículo por Placa inexistente (deve retornar 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/Veiculo/placa/ZZZ9999"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Fluxo: Criação e Diagnóstico da OS",
+      "description": "Cria uma Ordem de Serviço, inicia o diagnóstico, adiciona serviços e peças e finaliza o diagnóstico (geração do orçamento). Depende de {{clienteId}}, {{veiculoId}}, {{servicoId}} e {{pecaId}}.",
+      "item": [
+        {
+          "name": "01 - Criar Ordem de Serviço",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('ordemServicoId', json.id.toString());",
+                  "pm.test('ID da OS salvo', () => pm.expect(json.id).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"veiculoId\": {{veiculoId}},\n  \"clienteId\": {{clienteId}},\n  \"status\": \"Recebida\",\n  \"servicos\": [],\n  \"pecas\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Listar todas as OSs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico"
+          }
+        },
+        {
+          "name": "02b - Listar OSs filtrando por status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Retorna array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('Todas as OSs retornadas estao no status filtrado', () => json.forEach(os => pm.expect(['Recebida', 'EmDiagnostico']).to.include(os.status)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico?status=Recebida&status=EmDiagnostico"
+          }
+        },
+        {
+          "name": "03 - Buscar OS por ID (status Recebida)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status é Recebida', () => pm.expect(json.status).to.eql('Recebida'));",
+                  "pm.test('Dados do cliente presentes', () => pm.expect(json.nomeCliente).to.be.a('string').and.not.empty);",
+                  "pm.test('Dados do veículo presentes', () => pm.expect(json.placaVeiculo).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}"
+          }
+        },
+        {
+          "name": "04 - Iniciar Diagnóstico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId}}/iniciar-diagnostico"
+          }
+        },
+        {
+          "name": "05 - Buscar OS (status EmDiagnostico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status é EmDiagnostico', () => pm.expect(pm.response.json().status).to.eql('EmDiagnostico'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}"
+          }
+        },
+        {
+          "name": "06 - Adicionar Serviço à OS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}/servicos",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"servicoId\": {{servicoId}},\n  \"quantidade\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "07 - Adicionar Peça à OS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}/pecas",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"pecaId\": {{pecaId}},\n  \"quantidade\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "08 - Buscar OS Detalhada (extrair IDs dos itens)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('OS tem serviço', () => pm.expect(json.servicos.length).to.be.at.least(1));",
+                  "pm.test('OS tem peça', () => pm.expect(json.pecas.length).to.be.at.least(1));",
+                  "if (json.servicos.length > 0) pm.collectionVariables.set('servicoSolicitadoId', json.servicos[0].id.toString());",
+                  "if (json.pecas.length > 0) pm.collectionVariables.set('pecaSolicitadaId', json.pecas[0].id.toString());"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}"
+          }
+        },
+        {
+          "name": "09 - Finalizar Diagnóstico (gera orçamento)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId}}/finalizar-diagnostico"
+          }
+        },
+        {
+          "name": "10 - Buscar OS (status AguardandoAprovacao com orçamento)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status é AguardandoAprovacao', () => pm.expect(json.status).to.eql('AguardandoAprovacao'));",
+                  "pm.test('Orçamento gerado', () => pm.expect(json.orcamento).to.not.be.null);",
+                  "pm.test('Orçamento tem preço', () => pm.expect(json.orcamento.precoTotal).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Fluxo: Aprovação do Orçamento e Execução",
+      "description": "Cliente aprova o orçamento. A OS vai para EmExecucao. Os serviços são iniciados e finalizados individualmente. Depende da pasta 06 completa.",
+      "item": [
+        {
+          "name": "01 - Cliente Aprova o Orçamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente/{{clienteId}}/ordens-servico/{{ordemServicoId}}/responder-orcamento",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"aprovado\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Buscar OS (status EmExecucao)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status é EmExecucao', () => pm.expect(json.status).to.eql('EmExecucao'));",
+                  "pm.test('Orçamento aprovado', () => pm.expect(json.orcamento.status).to.eql('Aprovado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}"
+          }
+        },
+        {
+          "name": "03 - Iniciar Serviço",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId}}/iniciar-servico/{{servicoSolicitadoId}}"
+          }
+        },
+        {
+          "name": "04 - Buscar OS (serviço em execução)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Serviço em execução', () => pm.expect(json.servicos[0].statusExecucao).to.eql('EmExecucao'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}"
+          }
+        },
+        {
+          "name": "05 - Finalizar Serviço",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId}}/finalizar-servico/{{servicoSolicitadoId}}"
+          }
+        },
+        {
+          "name": "06 - Finalizar Ordem de Serviço",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId}}/status",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"status\": \"Finalizada\"\n}"
+            }
+          }
+        },
+        {
+          "name": "07 - Entregar Veículo ao Cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId}}/status",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"status\": \"Entregue\"\n}"
+            }
+          }
+        },
+        {
+          "name": "08 - Buscar OS (status Entregue)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status é Entregue', () => pm.expect(json.status).to.eql('Entregue'));",
+                  "pm.test('Serviço concluído', () => pm.expect(json.servicos[0].statusExecucao).to.eql('Executado'));",
+                  "pm.test('Data de finalização registrada', () => pm.expect(json.dataFinalizacao).to.not.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId}}"
+          }
+        },
+        {
+          "name": "09 - Consultar Tempos de Execução por Serviço",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna array de tempos', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/StatusOrdemServico/tempos-servico"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Fluxo: Recusa do Orçamento",
+      "description": "Cria uma nova OS, passa pelo diagnóstico e o cliente recusa o orçamento. A OS fica com orçamento Recusado. Ao final, a OS é deletada.",
+      "item": [
+        {
+          "name": "01 - Criar nova OS (para recusa)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('ordemServicoId2', json.id.toString());",
+                  "pm.test('ID da OS2 salvo', () => pm.expect(json.id).to.be.a('number').and.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"veiculoId\": {{veiculoId}},\n  \"clienteId\": {{clienteId}},\n  \"status\": \"Recebida\",\n  \"servicos\": [],\n  \"pecas\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Iniciar Diagnóstico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId2}}/iniciar-diagnostico"
+          }
+        },
+        {
+          "name": "03 - Adicionar Serviço à nova OS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}/servicos",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"servicoId\": {{servicoId}},\n  \"quantidade\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "04 - Finalizar Diagnóstico (gera orçamento)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId2}}/finalizar-diagnostico"
+          }
+        },
+        {
+          "name": "05 - Cliente Recusa o Orçamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente/{{clienteId}}/ordens-servico/{{ordemServicoId2}}/responder-orcamento",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"aprovado\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "06 - Buscar OS (orçamento Recusado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Orçamento recusado', () => pm.expect(json.orcamento.status).to.eql('Recusado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}"
+          }
+        },
+        {
+          "name": "07 - Remover Serviço antes de deletar OS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}/servicos/{{servicoId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Operações Avulsas: Gerenciamento da OS",
+      "description": "Testa adição e remoção de peças/serviços em uma OS já existente (ainda em diagnóstico). Cria uma OS auxiliar para não interferir nos fluxos anteriores.",
+      "item": [
+        {
+          "name": "01 - Criar OS auxiliar para gerenciamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('ordemServicoId2', pm.response.json().id.toString());"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"veiculoId\": {{veiculoId}},\n  \"clienteId\": {{clienteId}},\n  \"status\": \"Recebida\",\n  \"servicos\": [],\n  \"pecas\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Iniciar diagnóstico na OS auxiliar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId2}}/iniciar-diagnostico"
+          }
+        },
+        {
+          "name": "03 - Adicionar Serviço à OS auxiliar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}/servicos",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"servicoId\": {{servicoId}},\n  \"quantidade\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "04 - Adicionar Peça à OS auxiliar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}/pecas",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"pecaId\": {{pecaId}},\n  \"quantidade\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "05 - Remover Serviço da OS auxiliar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}/servicos/{{servicoId}}"
+          }
+        },
+        {
+          "name": "06 - Remover Peça da OS auxiliar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}/pecas/{{pecaId}}"
+          }
+        },
+        {
+          "name": "07 - Deletar OS auxiliar (sem itens)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}"
+          }
+        },
+        {
+          "name": "08 - Deletar OS inexistente (deve retornar 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/OrdemServico/999999"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Limpeza (Opcional)",
+      "description": "Remove todos os cadastros criados durante os testes. Execute somente após concluir todos os demais fluxos.",
+      "item": [
+        {
+          "name": "02 - Deletar Cliente PJ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/Cliente/{{clientePJId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Validações: Erros de Formato (400)",
+      "description": "Verifica que os Value Objects rejeitam dados inválidos com 400 Bad Request.\n\nRegras documentadas no README:\n- Documento: CPF (11 dígitos) ou CNPJ (14 dígitos) com dígito verificador válido; sequências repetidas são rejeitadas\n- Placa: formato antigo AAA9999 ou Mercosul AAA9A99\n- Email: deve conter @ e .; não pode ser vazio\n- Telefone: deve ter 10 ou 11 dígitos numéricos\n- Dinheiro: valor não pode ser negativo\n- Estoque: quantidade de baixa deve ser > 0 e <= estoque disponível",
+      "item": [
+        {
+          "name": "01 - Criar Cliente com email inválido (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Mensagem de erro presente', () => pm.expect(pm.response.json().erro).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Teste\",\n  \"sobrenome\": \"Invalido\",\n  \"telefone\": \"11999990001\",\n  \"email\": \"email-sem-arroba\",\n  \"numeroDocumento\": \"52998224725\",\n  \"tipoPessoa\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Criar Cliente com telefone inválido (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Mensagem de erro presente', () => pm.expect(pm.response.json().erro).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Teste\",\n  \"sobrenome\": \"Invalido\",\n  \"telefone\": \"12345\",\n  \"email\": \"valido@email.com\",\n  \"numeroDocumento\": \"52998224725\",\n  \"tipoPessoa\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "03 - Criar Cliente com CPF com dígito verificador errado (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Mensagem menciona documento inválido', () => pm.expect(pm.response.json().erro).to.include('Documento'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Teste\",\n  \"sobrenome\": \"Invalido\",\n  \"telefone\": \"11999990001\",\n  \"email\": \"valido@email.com\",\n  \"numeroDocumento\": \"12345678901\",\n  \"tipoPessoa\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "04 - Criar Cliente com CPF de sequência repetida (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Mensagem menciona documento inválido', () => pm.expect(pm.response.json().erro).to.include('Documento'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Cliente",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Teste\",\n  \"sobrenome\": \"Invalido\",\n  \"telefone\": \"11999990001\",\n  \"email\": \"valido@email.com\",\n  \"numeroDocumento\": \"11111111111\",\n  \"tipoPessoa\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "05 - Criar Veículo com placa inválida (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Mensagem menciona placa inválida', () => pm.expect(pm.response.json().erro).to.include('Placa'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Veiculo",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"modelo\": \"Civic\",\n  \"placa\": \"PLACAINVALIDA\",\n  \"marca\": \"Honda\",\n  \"ano\": 2022\n}"
+            }
+          }
+        },
+        {
+          "name": "06 - Criar Peça com precoVenda negativo (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Peca",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Peca Invalida\",\n  \"descricao\": \"Teste\",\n  \"custo\": 10.00,\n  \"precoVenda\": -5.00\n}"
+            }
+          }
+        },
+        {
+          "name": "07 - Criar Serviço com precoVenda negativo (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Servico",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Servico Invalido\",\n  \"precoVenda\": -1.00,\n  \"tempoEstimadoEmMinutos\": 30\n}"
+            }
+          }
+        },
+        {
+          "name": "08 - Baixa de estoque com quantidade maior que disponível (deve retornar 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Estoque/baixa",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"pecaId\": {{pecaId}},\n  \"quantidade\": 999999\n}"
+            }
+          }
+        },
+        {
+          "name": "09 - Entrada de estoque para peça inexistente (deve retornar 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Estoque/entrada",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"pecaId\": 999999,\n  \"quantidade\": 10,\n  \"precoCusto\": 10.00\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Controle de Acesso (401 / 403)",
+      "description": "Verifica o controle de acesso por perfil.\n\n- Requisições sem token JWT → 401 Unauthorized\n- Token de Funcionário tentando rotas exclusivas de Adm (POST/PUT/DELETE em Peça e Serviço) → 403 Forbidden\n- Senhas são armazenadas como hash BCrypt; login com credenciais inválidas retorna 401 sem distinguir usuário inexistente de senha errada",
+      "item": [
+        {
+          "name": "01 - Acessar endpoint sem token (deve retornar 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/Cliente"
+          }
+        },
+        {
+          "name": "02 - POST /Peca com token de Funcionário (deve retornar 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenFuncionario}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Peca",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Tentativa Funcionario\",\n  \"descricao\": \"Nao deve criar\",\n  \"custo\": 10.00,\n  \"precoVenda\": 20.00\n}"
+            }
+          }
+        },
+        {
+          "name": "03 - PUT /Peca com token de Funcionário (deve retornar 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenFuncionario}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Peca/{{pecaId}}",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Tentativa Funcionario\",\n  \"descricao\": \"Nao deve atualizar\",\n  \"custo\": 10.00,\n  \"precoVenda\": 20.00\n}"
+            }
+          }
+        },
+        {
+          "name": "04 - DELETE /Peca com token de Funcionário (deve retornar 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenFuncionario}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{baseUrl}}/Peca/{{pecaId}}"
+          }
+        },
+        {
+          "name": "05 - POST /Servico com token de Funcionário (deve retornar 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenFuncionario}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Servico",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Tentativa Funcionario\",\n  \"precoVenda\": 50.00,\n  \"tempoEstimadoEmMinutos\": 30\n}"
+            }
+          }
+        },
+        {
+          "name": "06 - PUT /Servico com token de Funcionário (deve retornar 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenFuncionario}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/Servico/{{servicoId}}",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"nome\": \"Tentativa Funcionario\",\n  \"precoVenda\": 50.00,\n  \"tempoEstimadoEmMinutos\": 30\n}"
+            }
+          }
+        },
+        {
+          "name": "07 - DELETE /Servico com token de Funcionário (deve retornar 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenFuncionario}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": "{{baseUrl}}/Servico/{{servicoId}}"
+          }
+        },
+        {
+          "name": "08 - GET /Peca com token de Funcionário (deve retornar 200 — leitura permitida)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK — Funcionário pode consultar peças', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenFuncionario}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/Peca"
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Transições de Status Inválidas",
+      "description": "Verifica que a máquina de estados da OS lança erro ao receber transições fora da sequência permitida.\n\nFluxo válido: Recebida → EmDiagnostico → AguardandoAprovacao → EmExecucao → Finalizada → Entregue\n\nQualquer transição fora dessa ordem lança TransicaoStatusInvalidaException e retorna 422 Unprocessable Entity.",
+      "item": [
+        {
+          "name": "01 - Criar OS temporária para testes de transição",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('ordemServicoId2', pm.response.json().id.toString());"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/OrdemServico",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"veiculoId\": {{veiculoId}},\n  \"clienteId\": {{clienteId}},\n  \"status\": \"Recebida\",\n  \"servicos\": [],\n  \"pecas\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "02 - Iniciar Diagnóstico (Recebida → EmDiagnostico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId2}}/iniciar-diagnostico"
+          }
+        },
+        {
+          "name": "03 - Iniciar Diagnóstico novamente (EmDiagnostico → inválido, deve retornar 422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422 — transição inválida', () => pm.response.to.have.status(422));",
+                  "pm.test('Mensagem genérica tratada', () => pm.expect(pm.response.json().erro).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId2}}/iniciar-diagnostico"
+          }
+        },
+        {
+          "name": "04 - Tentar Finalizar OS (EmDiagnostico → Finalizada, deve retornar 422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422 — transição inválida', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId2}}/status",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"status\": \"Finalizada\"\n}"
+            }
+          }
+        },
+        {
+          "name": "05 - Tentar Entregar Veículo (EmDiagnostico → Entregue, deve retornar 422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422 — transição inválida', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/StatusOrdemServico/{{ordemServicoId2}}/status",
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"status\": \"Entregue\"\n}"
+            }
+          }
+        },
+        {
+          "name": "06 - Limpar: remover OS temporária (sem itens)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/OrdemServico/{{ordemServicoId2}}"
+          }
+        }
+      ]
+    }
+  ]
+}

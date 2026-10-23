@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Atendimento.Application.Services</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\Entities\Atendimento.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\Domain\Interfaces\Atendimento.Domain.Interfaces.csproj" />
+    <ProjectReference Include="..\DTOs\Atendimento.Application.DTOs.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Domain\Entities\Compartilhado.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Domain\ValueObjects\Compartilhado.Domain.ValueObjects.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Application\Compartilhado.Application.csproj" />
+    <ProjectReference Include="..\..\..\Operacao\Domain\Entities\Operacao.Domain.Entities.csproj" />
+  </ItemGroup>
+</Project>

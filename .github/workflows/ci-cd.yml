@@ -1,0 +1,256 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      confirm_deploy:
+        description: "Confirma o deploy para produção (camada extra de confirmação)?"
+        required: true
+        type: choice
+        options:
+          - "no"
+          - "yes"
+        default: "no"
+
+# Nomes fixos definidos pelo Terraform do TechChallenger-infra-kubernetes
+# (variáveis cluster_name e ecr_repository_name). A URL do ECR depende do ID da
+# conta AWS e é descoberta em tempo de execução.
+env:
+  EKS_CLUSTER_NAME: techchallenger-fase1
+  ECR_REPOSITORY_NAME: techchallenger-fase1
+
+jobs:
+  build-and-test:
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/release/'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: src/**/*.csproj
+
+      - name: Restaurar dependências (NuGet)
+        run: dotnet restore src/TechChallenger-fase1.sln
+
+      - name: Build da aplicação
+        run: dotnet build src/TechChallenger-fase1.sln --no-restore --configuration Release
+
+      - name: Rodar testes automatizados
+        run: >
+          dotnet test src/TechChallenger-fase1.sln
+          --no-build --configuration Release
+          --filter "FullyQualifiedName~Tests"
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Publicar resumo dos testes no Job Summary
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Resultado dos Testes
+          path: 'TestResults/**/*.trx'
+          reporter: dotnet-trx
+
+      - name: Upload dos resultados de teste e cobertura como artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TestResults/
+          retention-days: 15
+
+  build-and-push-image:
+    needs: build-and-test
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.confirm_deploy == 'yes' &&
+      startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    environment: aws-deploy
+    outputs:
+      image-tag: ${{ steps.vars.outputs.version }}
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Extrair versão da release a partir da branch
+        id: vars
+        run: |
+          branch="${{ github.ref_name }}"
+          version="${branch#release/}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Branch '$branch' não segue o padrão release/X.Y.Z (ex: release/1.4.2)."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+     
+      - name: Configurar credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Descobrir URL do repositório ECR
+        run: |
+          url=$(aws ecr describe-repositories --repository-names "$ECR_REPOSITORY_NAME" \
+            --query 'repositories[0].repositoryUri' --output text)
+          echo "ECR_REPOSITORY_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Login no Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: src/**/*.csproj
+
+      - name: Publish da aplicação (.NET)
+        run: >
+          dotnet publish src/Presentation/TechChallenger-fase1/TechChallenger-fase1.csproj
+          --configuration Release
+          --output ./publish
+          -p:Version=${{ steps.vars.outputs.version }}
+
+      - name: Build da imagem Docker
+        run: |
+          docker build \
+            -t "$ECR_REPOSITORY_URL:${{ steps.vars.outputs.version }}" \
+            .
+
+      - name: Push da imagem para o Amazon ECR
+        run: docker push "$ECR_REPOSITORY_URL:${{ steps.vars.outputs.version }}"
+
+  deploy-k8s:
+    needs: build-and-push-image
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.confirm_deploy == 'yes' &&
+      startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    environment: aws-deploy
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      
+      - name: Configurar credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Descobrir URL do repositório ECR
+        run: |
+          url=$(aws ecr describe-repositories --repository-names "$ECR_REPOSITORY_NAME" \
+            --query 'repositories[0].repositoryUri' --output text)
+          echo "ECR_REPOSITORY_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Instalar kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.0'
+
+      - name: Configurar kubeconfig do cluster EKS
+        run: |
+          aws eks update-kubeconfig \
+            --name "$EKS_CLUSTER_NAME" \
+            --region us-east-1
+
+      - name: Atualizar tag da imagem no deployment.yaml
+        run: |
+          sed -i "s#IMAGE_PLACEHOLDER#$ECR_REPOSITORY_URL:${{ needs.build-and-push-image.outputs.image-tag }}#" \
+            k8s/aws/deployment.yaml
+
+      - name: Aplicar ConfigMap
+        run: kubectl apply -f k8s/aws/configmap.yaml
+
+      - name: Aplicar Secret (a partir de um único GitHub Actions Secret no formato .env)
+        run: |
+          printf '%s\n' "${{ secrets.K8S_SECRET_ENV }}" > techchallenger-secret.env
+          kubectl create secret generic techchallenger-api-secret \
+            --from-env-file=techchallenger-secret.env \
+            --dry-run=client -o yaml | kubectl apply -f -
+          rm -f techchallenger-secret.env
+
+      - name: Aplicar Deployment
+        run: kubectl apply -f k8s/aws/deployment.yaml
+
+      - name: Aplicar Service
+        run: kubectl apply -f k8s/aws/service.yaml
+
+      - name: Aplicar HPA
+        run: kubectl apply -f k8s/aws/hpa.yaml
+
+      - name: Aguardar rollout do Deployment
+        run: kubectl rollout status deployment/techchallenger-api --timeout=180s
+
+      - name: Exibir endpoint público (API Gateway)
+        run: |
+          kubectl get service techchallenger-api -o wide
+          endpoint=$(aws apigatewayv2 get-apis \
+            --query "Items[?Name=='$EKS_CLUSTER_NAME-gateway'].ApiEndpoint | [0]" --output text)
+          echo "API disponível em: $endpoint"
+
+  merge-to-main:
+    needs: [build-and-test, build-and-push-image, deploy-k8s]
+    if: success() && startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Verificar se há commits novos em relação à main
+        id: diff-check
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          ahead=$(gh api "repos/${{ github.repository }}/compare/main...${{ github.ref_name }}" --jq '.ahead_by')
+          echo "ahead=$ahead" >> "$GITHUB_OUTPUT"
+          if [ "$ahead" = "0" ]; then
+            echo "Branch ${{ github.ref_name }} já está totalmente mesclada na main — nada para mesclar."
+          fi
+
+      - name: Criar Pull Request de release para main
+        id: create-pr
+        if: steps.diff-check.outputs.ahead != '0'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          existing=$(gh pr list --base main --head "${{ github.ref_name }}" --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "PR #$existing já existe para ${{ github.ref_name }} -> main."
+          else
+            gh pr create \
+              --base main \
+              --head "${{ github.ref_name }}" \
+              --title "Release ${{ needs.build-and-push-image.outputs.image-tag }}" \
+              --body "Merge automático gerado pela pipeline após deploy bem-sucedido da versão ${{ needs.build-and-push-image.outputs.image-tag }} no EKS."
+          fi
+
+      - name: Habilitar auto-merge no Pull Request
+        if: steps.diff-check.outputs.ahead != '0'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_MERGE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: gh pr merge "${{ github.ref_name }}" --auto --merge

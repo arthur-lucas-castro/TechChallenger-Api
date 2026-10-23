@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Operacao.Domain.ValueObjects</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Compartilhado\Domain\Entities\Compartilhado.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Domain\ValueObjects\Compartilhado.Domain.ValueObjects.csproj" />
+  </ItemGroup>
+</Project>

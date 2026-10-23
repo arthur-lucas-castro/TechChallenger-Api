@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Catalogo.Application.Services</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\Entities\Catalogo.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\Domain\Interfaces\Catalogo.Domain.Interfaces.csproj" />
+    <ProjectReference Include="..\DTOs\Catalogo.Application.DTOs.csproj" />
+    <ProjectReference Include="..\..\..\Operacao\Domain\Entities\Operacao.Domain.Entities.csproj" />
+  </ItemGroup>
+</Project>

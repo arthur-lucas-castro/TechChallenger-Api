@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Catalogo.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Catalogo\Application\Services\Catalogo.Application.Services.csproj" />
+    <ProjectReference Include="..\..\..\Catalogo\Application\DTOs\Catalogo.Application.DTOs.csproj" />
+    <ProjectReference Include="..\..\..\Catalogo\Domain\Entities\Catalogo.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\..\Catalogo\Domain\ValueObjects\Catalogo.Domain.ValueObjects.csproj" />
+    <ProjectReference Include="..\..\..\Catalogo\Domain\Interfaces\Catalogo.Domain.Interfaces.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Domain\Entities\Compartilhado.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Domain\ValueObjects\Compartilhado.Domain.ValueObjects.csproj" />
+    <ProjectReference Include="..\..\..\Operacao\Domain\Entities\Operacao.Domain.Entities.csproj" />
+  </ItemGroup>
+</Project>

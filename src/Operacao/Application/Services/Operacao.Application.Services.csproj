@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Operacao.Application.Services</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Atendimento\Application\Services\Atendimento.Application.Services.csproj" />
+    <ProjectReference Include="..\..\..\Atendimento\Domain\Entities\Atendimento.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\Domain\Entities\Operacao.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\Domain\Interfaces\Operacao.Domain.Interfaces.csproj" />
+    <ProjectReference Include="..\DTOs\Operacao.Application.DTOs.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Domain\Entities\Compartilhado.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Domain\ValueObjects\Compartilhado.Domain.ValueObjects.csproj" />
+    <ProjectReference Include="..\..\..\Catalogo\Application\Services\Catalogo.Application.Services.csproj" />
+    <ProjectReference Include="..\..\Domain\Excecoes\Operacao.Domain.Excecoes.csproj" />
+  </ItemGroup>
+</Project>
