@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: techchallenger-api
+  labels:
+    app: techchallenger-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: techchallenger-api
+  template:
+    metadata:
+      labels:
+        app: techchallenger-api
+    spec:
+      containers:
+        - name: techchallenger-api
+          image: techchallenger-fase1:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: techchallenger-api-config
+            - secretRef:
+                name: techchallenger-api-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3

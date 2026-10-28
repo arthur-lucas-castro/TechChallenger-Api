@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: techchallenger-api-config
+  labels:
+    app: techchallenger-api
+data:
+  ASPNETCORE_ENVIRONMENT: "Development"
+  ASPNETCORE_URLS: "http://+:8080"
+  Jwt__Issuer: "TechChallenger"
+  Jwt__Audience: "TechChallenger"
+  Jwt__ExpirationMinutes: "60"
+  POSTGRES_DB: "techchallenger"
+  Email__Habilitado: "true"
+  Email__Host: "mailpit-service"
+  Email__Port: "1025"
+  Email__UseSsl: "false"
+  Email__FromAddress: "naoresponda@techchallenger.com"
+  Email__FromName: "TechChallenger Oficina"
+  Email__TentativasMaximas: "3"
+  Email__DelayInicialSegundos: "2"

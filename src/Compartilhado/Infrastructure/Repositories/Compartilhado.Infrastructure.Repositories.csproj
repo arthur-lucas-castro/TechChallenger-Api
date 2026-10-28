@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Compartilhado.Infrastructure.Repositories</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.72" />
+    <PackageReference Include="Dommel" Version="3.5.1" />
+    <PackageReference Include="EFCore.NamingConventions" Version="8.0.0" />
+    <PackageReference Include="Npgsql" Version="8.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\Entities\Compartilhado.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\..\Atendimento\Domain\Entities\Atendimento.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\..\Atendimento\Domain\ValueObjects\Atendimento.Domain.ValueObjects.csproj" />
+    <ProjectReference Include="..\..\..\Catalogo\Domain\Entities\Catalogo.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\..\Operacao\Domain\Entities\Operacao.Domain.Entities.csproj" />
+  </ItemGroup>
+</Project>

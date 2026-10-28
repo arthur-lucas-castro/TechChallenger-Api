@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TechChallenger_fase1</RootNamespace>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Operacao\Presentation\Controllers\Operacao.Presentation.Controllers.csproj" />
+    <ProjectReference Include="..\..\Operacao\Application\Services\Operacao.Application.Services.csproj" />
+    <ProjectReference Include="..\..\Operacao\Domain\Interfaces\Operacao.Domain.Interfaces.csproj" />
+    <ProjectReference Include="..\..\Operacao\Infrastructure\Repositories\Operacao.Infrastructure.Repositories.csproj" />
+    <ProjectReference Include="..\..\Compartilhado\Infrastructure\Repositories\Compartilhado.Infrastructure.Repositories.csproj" />
+    <ProjectReference Include="..\..\Compartilhado\Infrastructure\Email\Compartilhado.Infrastructure.Email.csproj" />
+    <ProjectReference Include="..\..\Atendimento\Presentation\Controllers\Atendimento.Presentation.Controllers.csproj" />
+    <ProjectReference Include="..\..\Atendimento\Infrastructure\Repositories\Atendimento.Infrastructure.Repositories.csproj" />
+    <ProjectReference Include="..\..\Catalogo\Presentation\Controllers\Catalogo.Presentation.Controllers.csproj" />
+    <ProjectReference Include="..\..\Catalogo\Infrastructure\Repositories\Catalogo.Infrastructure.Repositories.csproj" />
+    <ProjectReference Include="..\..\Compartilhado\Application\Compartilhado.Application.csproj" />
+    <ProjectReference Include="..\..\Compartilhado\Presentation\Compartilhado.Presentation.csproj" />
+  </ItemGroup>
+
+</Project>

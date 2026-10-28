@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Atendimento.Infrastructure.Repositories</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\Entities\Atendimento.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\Domain\ValueObjects\Atendimento.Domain.ValueObjects.csproj" />
+    <ProjectReference Include="..\..\Domain\Interfaces\Atendimento.Domain.Interfaces.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Infrastructure\Repositories\Compartilhado.Infrastructure.Repositories.csproj" />
+  </ItemGroup>
+</Project>

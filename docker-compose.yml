@@ -1,0 +1,46 @@
+services:
+  postgres:
+    build:
+      context: ./database
+    container_name: techchallenger-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: techchallenger
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: techchallenger-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  api:
+    build:
+      context: .
+    container_name: techchallenger-api
+    ports:
+      - "5158:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=techchallenger;Username=postgres;Password=postgres"
+      Jwt__SecretKey: "TechChallengerSecretKey@2024!MustBe32CharsMin"
+      Email__Habilitado: "true"
+      Email__Host: "mailpit"
+      Email__Port: "1025"
+      Email__UseSsl: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

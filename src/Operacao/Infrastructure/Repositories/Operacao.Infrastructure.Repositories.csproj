@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Operacao.Infrastructure.Repositories</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\Entities\Operacao.Domain.Entities.csproj" />
+    <ProjectReference Include="..\..\Domain\Interfaces\Operacao.Domain.Interfaces.csproj" />
+    <ProjectReference Include="..\..\..\Compartilhado\Infrastructure\Repositories\Compartilhado.Infrastructure.Repositories.csproj" />
+  </ItemGroup>
+</Project>
