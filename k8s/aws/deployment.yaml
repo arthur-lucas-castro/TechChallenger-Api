@@ -5,7 +5,9 @@ metadata:
   labels:
     app: techchallenger-api
 spec:
-  replicas: 2
+  # 1 réplica: com t3.micro cada node aceita só 4 pods (limite de IPs do VPC
+  # CNI) e os pods de sistema ocupam 7 dos 8 slots do cluster.
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
