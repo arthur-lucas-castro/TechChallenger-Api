@@ -8,6 +8,7 @@ namespace Operacao.Domain.Entities.Events
         int ClienteId,
         StatusOrdemServico StatusAnterior,
         StatusOrdemServico NovoStatus,
-        DateTime DataAlteracao
+        DateTime DataAlteracao,
+        DateTime DataEntradaStatusAnterior
     ) : IDomainEvent;
 }

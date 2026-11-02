@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\Operacao\Infrastructure\Repositories\Operacao.Infrastructure.Repositories.csproj" />
     <ProjectReference Include="..\..\Compartilhado\Infrastructure\Repositories\Compartilhado.Infrastructure.Repositories.csproj" />
     <ProjectReference Include="..\..\Compartilhado\Infrastructure\Email\Compartilhado.Infrastructure.Email.csproj" />
+    <ProjectReference Include="..\..\Compartilhado\Infrastructure\Metricas\Compartilhado.Infrastructure.Metricas.csproj" />
     <ProjectReference Include="..\..\Atendimento\Presentation\Controllers\Atendimento.Presentation.Controllers.csproj" />
     <ProjectReference Include="..\..\Atendimento\Infrastructure\Repositories\Atendimento.Infrastructure.Repositories.csproj" />
     <ProjectReference Include="..\..\Catalogo\Presentation\Controllers\Catalogo.Presentation.Controllers.csproj" />

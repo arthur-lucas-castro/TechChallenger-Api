@@ -35,7 +35,7 @@ public class NotificacaoStatusOrdemServicoHandlerTests
 
     private static OrdemServicoStatusAlteradoEvent CriarEventoStatus(
         StatusOrdemServico anterior, StatusOrdemServico novo, int clienteId = 10, int ordemServicoId = 1) =>
-        new(ordemServicoId, clienteId, anterior, novo, DateTime.UtcNow);
+        new(ordemServicoId, clienteId, anterior, novo, DateTime.UtcNow, DateTime.UtcNow.AddHours(-1));
 
     // ── OrdemServicoStatusAlteradoEvent — status com template ────────────────
 

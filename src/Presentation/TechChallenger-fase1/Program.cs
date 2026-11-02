@@ -30,6 +30,8 @@ using Npgsql;
 using Compartilhado.Domain.ValueObjects;
 using Compartilhado.Infrastructure.Email;
 using Compartilhado.Presentation.Middlewares;
+using Compartilhado.Infrastructure.Metricas;
+using StatsdClient;
 using Serilog;
 using Serilog.Events;
 using Serilog.Templates;
@@ -153,6 +155,30 @@ builder.Services.AddScoped<IOrdemServicoService, OrdemServicoService>();
 builder.Services.AddScoped<IDomainEventHandler<OrdemServicoDiagnosticoFinalizadoEvent>, DiagnosticoFinalizadoHandler>();
 builder.Services.AddScoped<IDomainEventHandler<OrcamentoRespondidoEvent>, OrcamentoRespondidoHandler>();
 builder.Services.AddScoped<IDomainEventHandler<OrdemServicoIniciadaEvent>, OrdemServicoIniciadaHandler>();
+
+// DD_AGENT_HOST é injetado no pod pelo admission controller do Datadog. Sem ele
+// (execução local, docker-compose), as métricas são descartadas.
+var datadogAgentHost = builder.Configuration["DD_AGENT_HOST"];
+if (string.IsNullOrWhiteSpace(datadogAgentHost))
+{
+    builder.Services.AddSingleton<IMetricasService, MetricasDesabilitadasService>();
+}
+else
+{
+    builder.Services.AddSingleton<IDogStatsd>(_ =>
+    {
+        var statsd = new DogStatsdService();
+        statsd.Configure(new StatsdConfig
+        {
+            StatsdServerName = datadogAgentHost,
+            Prefix = DogStatsdMetricasService.Prefixo
+        });
+        return statsd;
+    });
+    builder.Services.AddSingleton<IMetricasService, DogStatsdMetricasService>();
+}
+// Antes da notificação por e-mail: uma falha no envio não impede o registro da métrica.
+builder.Services.AddScoped<IDomainEventHandler<OrdemServicoStatusAlteradoEvent>, MetricasStatusOrdemServicoHandler>();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();

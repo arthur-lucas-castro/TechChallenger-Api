@@ -67,6 +67,16 @@ Os `resources.requests`/`limits` (100m/128Mi de request, 250m/256Mi de limit) s�
 
 Por causa do tracer, a memória subiu para 192Mi de request e 384Mi de limit. Isso exige nodes `t3.small`, que o agente Datadog já exige. Sem o agente no cluster, o label e as annotations não têm efeito.
 
+A API também envia métricas de negócio por DogStatsD ao agente do node (`DD_AGENT_HOST`, UDP 8125). Sem `DD_AGENT_HOST`, como na execução local, elas são descartadas:
+
+| Métrica | Tipo | Tags | Origem |
+|---|---|---|---|
+| `oficina.os.criada` | count | — | `OrdemServicoService.CriarAsync` |
+| `oficina.os.tempo_no_status` | distribution (segundos) | `status` (status que a OS deixou) | `MetricasStatusOrdemServicoHandler`, a cada `OrdemServicoStatusAlteradoEvent` |
+| `oficina.api.falha` | count | `controller`, `acao`, `tipo` (`dominio`, `validacao`, `nao_encontrado`, `operacao_invalida`, `erro_interno`) | `ExceptionMiddleware` |
+
+O tempo em cada status é a diferença entre a transição de saída e a de entrada (`DataUltimaAlteracao`, ou `DataCriacao` para `Recebida`). Para o dashboard, Diagnóstico = `status:EmDiagnostico`, Execução = `status:EmExecucao` e Finalização = `status:Finalizada` (da finalização até a entrega).
+
 Os logs da API saem em JSON (Serilog), uma linha por evento, com `timestamp`, `level`, `message`, `logger`, `CorrelationId` e as demais propriedades. O `CorrelationIdMiddleware` reaproveita o `x-correlation-id` enviado pelo API Gateway (o `requestId` dos access logs do gateway), ou gera um novo, e devolve o id no header da resposta.
 
 ### `hpa.yaml`

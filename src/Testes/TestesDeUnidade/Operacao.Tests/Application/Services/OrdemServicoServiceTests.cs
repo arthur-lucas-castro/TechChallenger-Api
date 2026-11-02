@@ -2,6 +2,7 @@ using Atendimento.Application.DTOs;
 using Atendimento.Application.Services.Interfaces;
 using Catalogo.Application.DTOs;
 using Catalogo.Application.Services.Interfaces;
+using Compartilhado.Application.Services.Interfaces;
 using Compartilhado.Domain.Entities;
 using Compartilhado.Domain.ValueObjects;
 using Operacao.Application.DTOs;
@@ -19,6 +20,7 @@ public class OrdemServicoServiceTests
     private readonly Mock<IDomainEventDispatcher> _dispatcherMock;
     private readonly Mock<IClienteService> _clienteServiceMock;
     private readonly Mock<IVeiculoService> _veiculoServiceMock;
+    private readonly Mock<IMetricasService> _metricasMock;
     private readonly OrdemServicoService _service;
 
     public OrdemServicoServiceTests()
@@ -29,6 +31,7 @@ public class OrdemServicoServiceTests
         _dispatcherMock     = new Mock<IDomainEventDispatcher>();
         _clienteServiceMock = new Mock<IClienteService>();
         _veiculoServiceMock = new Mock<IVeiculoService>();
+        _metricasMock       = new Mock<IMetricasService>();
 
         _service = new OrdemServicoService(
             _repositorioMock.Object,
@@ -36,7 +39,8 @@ public class OrdemServicoServiceTests
             _pecaServiceMock.Object,
             _dispatcherMock.Object,
             _clienteServiceMock.Object,
-            _veiculoServiceMock.Object);
+            _veiculoServiceMock.Object,
+            _metricasMock.Object);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -401,6 +405,46 @@ public class OrdemServicoServiceTests
         // Assert
         Assert.Equal(5, id);
         _repositorioMock.Verify(r => r.InsertAsync(It.IsAny<OrdemServico>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CriarAsync_Sucesso_RegistraMetricaDeOrdemCriada()
+    {
+        // Arrange
+        _servicoServiceMock.Setup(s => s.ObterPorIdAsync(1))
+            .ReturnsAsync(new ServicoResponseDto { Id = 1, PrecoVenda = 100m, Nome = "Alinhamento", TempoEstimadoEmMinutos = 30 });
+        _repositorioMock.Setup(r => r.InsertAsync(It.IsAny<OrdemServico>())).ReturnsAsync(5);
+        var dto = new OrdemServicoRequestDto
+        {
+            VeiculoId = 10, ClienteId = 20,
+            Servicos = [new ServicoSolicitadoRequestDto { ServicoId = 1, Quantidade = 1 }],
+            Pecas = []
+        };
+
+        // Act
+        await _service.CriarAsync(dto);
+
+        // Assert
+        _metricasMock.Verify(m => m.OrdemServicoCriada(), Times.Once);
+    }
+
+    [Fact]
+    public async Task CriarAsync_ServicoNaoEncontrado_NaoRegistraMetrica()
+    {
+        // Arrange
+        _servicoServiceMock.Setup(s => s.ObterPorIdAsync(99)).ReturnsAsync((ServicoResponseDto?)null);
+        var dto = new OrdemServicoRequestDto
+        {
+            VeiculoId = 10, ClienteId = 20,
+            Servicos = [new ServicoSolicitadoRequestDto { ServicoId = 99, Quantidade = 1 }],
+            Pecas = []
+        };
+
+        // Act
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _service.CriarAsync(dto));
+
+        // Assert
+        _metricasMock.Verify(m => m.OrdemServicoCriada(), Times.Never);
     }
 
     [Fact]
