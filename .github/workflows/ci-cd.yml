@@ -179,9 +179,11 @@ jobs:
             --name "$EKS_CLUSTER_NAME" \
             --region us-east-1
 
-      - name: Atualizar tag da imagem no deployment.yaml
+      - name: Atualizar tag da imagem e versão do Datadog no deployment.yaml
         run: |
-          sed -i "s#IMAGE_PLACEHOLDER#$ECR_REPOSITORY_URL:${{ needs.build-and-push-image.outputs.image-tag }}#" \
+          sed -i \
+            -e "s#IMAGE_PLACEHOLDER#$ECR_REPOSITORY_URL:${{ needs.build-and-push-image.outputs.image-tag }}#" \
+            -e "s#VERSION_PLACEHOLDER#\"${{ needs.build-and-push-image.outputs.image-tag }}\"#" \
             k8s/aws/deployment.yaml
 
       - name: Aplicar ConfigMap

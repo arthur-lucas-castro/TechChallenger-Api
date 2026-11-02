@@ -4,6 +4,9 @@ metadata:
   name: techchallenger-api
   labels:
     app: techchallenger-api
+    tags.datadoghq.com/env: prod
+    tags.datadoghq.com/service: techchallenger-api
+    tags.datadoghq.com/version: VERSION_PLACEHOLDER
 spec:
   # 1 réplica: com t3.micro cada node aceita só 4 pods (limite de IPs do VPC
   # CNI) e os pods de sistema ocupam 7 dos 8 slots do cluster.
@@ -20,6 +23,16 @@ spec:
     metadata:
       labels:
         app: techchallenger-api
+        # Unified service tagging: o admission controller do Datadog vira estes
+        # labels em DD_ENV/DD_SERVICE/DD_VERSION e injeta o tracer .NET no pod.
+        tags.datadoghq.com/env: prod
+        tags.datadoghq.com/service: techchallenger-api
+        tags.datadoghq.com/version: VERSION_PLACEHOLDER
+        admission.datadoghq.com/enabled: "true"
+      annotations:
+        admission.datadoghq.com/dotnet-lib.version: "v3.55.2"
+        # source csharp ativa o pipeline de logs C# do Datadog (status e trace_id).
+        ad.datadoghq.com/techchallenger-api.logs: '[{"source":"csharp","service":"techchallenger-api"}]'
     spec:
       containers:
         - name: techchallenger-api
@@ -33,12 +46,13 @@ spec:
             - secretRef:
                 name: techchallenger-api-secret
           resources:
+            # Memória acima do que a API usa sozinha: o tracer .NET injetado consome ~50Mi.
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 192Mi
             limits:
               cpu: 250m
-              memory: 256Mi
+              memory: 384Mi
           livenessProbe:
             httpGet:
               path: /health

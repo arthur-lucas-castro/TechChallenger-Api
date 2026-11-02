@@ -47,6 +47,8 @@ Não há arquivo no repositório: a pipeline gera o Secret `techchallenger-api-s
 
 Mesmas variáveis não sensíveis do ambiente local (ambiente ASP.NET Core, URLs, configuração de JWT), sem `POSTGRES_DB` — o nome do banco já vem embutido na connection string do Secret, e não há pod de Postgres para consumi-lo separadamente.
 
+Inclui também a configuração do tracer Datadog: `DD_LOGS_INJECTION` (põe `dd.trace_id`/`dd.span_id` nos logs, ligando log e trace), `DD_RUNTIME_METRICS_ENABLED` (GC, threads e heap do .NET) e `DD_TRACE_HEADER_TAGS`, que grava o `x-correlation-id` como tag `correlation_id` no span.
+
 ### `deployment.yaml`
 
 Deployment da API para o ambiente AWS: 2 réplicas, `image: IMAGE_PLACEHOLDER` (substituído pela pipeline de CI/CD pela URL da imagem no ECR), `imagePullPolicy: Always` (garante que a tag mais recente publicada seja sempre puxada). Mesmas probes de `/health` do ambiente local.
@@ -56,6 +58,16 @@ Os `resources.requests`/`limits` (100m/128Mi de request, 250m/256Mi de limit) s�
 - O allocatable real fica em ~700-800Mi de memória e ~940m de CPU depois do `kube-reserved`/`system-reserved` da AMI do EKS (o restante é consumido por `kubelet`, `kube-proxy`, `aws-node`/VPC CNI, etc.).
 - 2 réplicas × 128Mi/100m de request = 256Mi/200m no total, o que cabe em um único `t3.micro` junto com os daemonsets do sistema — mas para ter HA de verdade (sobreviver à perda de 1 node) é necessário ter pelo menos 2 nodes no node group, não só 2 réplicas.
 - Os limits (256Mi/250m) evitam que um pod estoure a memória do node sozinho; se no futuro for adicionado HPA ou mais pods no mesmo node, revisar esses números com `kubectl top nodes/pods`.
+
+**Datadog.** Com o agente instalado no cluster (workflow `datadog.yml` do [TechChallenger-infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes)), o pod é instrumentado sem mudança no Dockerfile:
+
+- o label `admission.datadoghq.com/enabled: "true"` faz o Cluster Agent injetar o tracer .NET, na versão fixada pela annotation `admission.datadoghq.com/dotnet-lib.version`, e preencher `DD_AGENT_HOST`;
+- os labels `tags.datadoghq.com/env|service|version` viram `DD_ENV`, `DD_SERVICE` e `DD_VERSION`. A versão é o `VERSION_PLACEHOLDER`, trocado pela pipeline pela versão da release, como o `IMAGE_PLACEHOLDER`;
+- a annotation `ad.datadoghq.com/techchallenger-api.logs` marca os logs com `source:csharp`, que ativa o pipeline de logs C# do Datadog.
+
+Por causa do tracer, a memória subiu para 192Mi de request e 384Mi de limit. Isso exige nodes `t3.small`, que o agente Datadog já exige. Sem o agente no cluster, o label e as annotations não têm efeito.
+
+Os logs da API saem em JSON (Serilog), uma linha por evento, com `timestamp`, `level`, `message`, `logger`, `CorrelationId` e as demais propriedades. O `CorrelationIdMiddleware` reaproveita o `x-correlation-id` enviado pelo API Gateway (o `requestId` dos access logs do gateway), ou gera um novo, e devolve o id no header da resposta.
 
 ### `hpa.yaml`
 
