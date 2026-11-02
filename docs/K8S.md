@@ -41,7 +41,7 @@ Expõe a API localmente via `NodePort` na porta 8080.
 
 ### `secret.yaml`
 
-Equivalente ao Secret local, mas a `ConnectionStrings__Default` aponta para o endpoint do RDS (placeholders `<rds-endpoint>`, `<rds-username>`, `<rds-password>`, preenchidos a partir dos outputs do repositório infra-database). Não contém `POSTGRES_USER`/`POSTGRES_PASSWORD` porque não há pod de banco neste ambiente — quem gerencia essas credenciais é o RDS.
+Não há arquivo no repositório: a pipeline gera o Secret `techchallenger-api-secret` com os valores do SSM Parameter Store, publicados pelo infra-kubernetes. É equivalente ao Secret local, mas a `ConnectionStrings__Default` aponta para o endpoint do RDS. Não contém `POSTGRES_USER`/`POSTGRES_PASSWORD` porque não há pod de banco neste ambiente — quem gerencia essas credenciais é o RDS.
 
 ### `configmap.yaml`
 

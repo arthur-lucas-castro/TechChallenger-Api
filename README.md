@@ -98,21 +98,21 @@ Automatizado via GitHub Actions ([.github/workflows/](.github/workflows)):
 | Nome | Origem |
 |---|---|
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Credenciais do Learner Lab (renovar a cada sessão) |
-| `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Outputs do **infra-database** (`rds_address`, `db_name`) e credenciais definidas lá |
-| `K8S_SECRET_ENV` | Conteúdo `.env` do Secret da API (ver abaixo) |
 | `RELEASE_MERGE_TOKEN` (opcional) | PAT para o auto-merge da release |
 
 O nome do cluster EKS e do repositório ECR não são secrets: ficam fixos no `env` dos workflows (`techchallenger-fase1`, iguais às variáveis `cluster_name` e `ecr_repository_name` do infra-kubernetes). A URL do ECR, que inclui o ID da conta AWS, é descoberta pela pipeline com `aws ecr describe-repositories`.
 
-O Secret `techchallenger-api-secret` é gerado pela pipeline a partir do `K8S_SECRET_ENV`, uma linha `Chave=Valor` por variável:
+### Parâmetros no SSM
 
-```
-ConnectionStrings__Default=Host=...;Port=5432;Database=...;Username=...;Password=...
-Jwt__SecretKey=...
-Email__Host=smtp.gmail.com
-Email__Username=...
-Email__Password=...
-```
+Os dados de banco, JWT e e-mail ficam no SSM Parameter Store, publicados pelo workflow `ssm-parameters.yml` do **infra-kubernetes**. A pipeline os lê a cada execução e falha se algum parâmetro não existir. O `ci-cd.yml` monta o Secret `techchallenger-api-secret`, e o `database-migration.yml` cria um Secret temporário para o Job:
+
+| Parâmetro SSM | Variável da API |
+|---|---|
+| `/techchallenger/db/host`, `name`, `username`, `password` | `ConnectionStrings__Default` |
+| `/techchallenger/jwt/secret` | `Jwt__SecretKey` |
+| `/techchallenger/email/host` | `Email__Host` |
+| `/techchallenger/email/username` | `Email__Username` |
+| `/techchallenger/email/password` | `Email__Password` |
 
 ## Execução local
 
