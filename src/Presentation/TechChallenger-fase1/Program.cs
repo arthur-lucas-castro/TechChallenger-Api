@@ -29,6 +29,10 @@ using Operacao.Infrastructure.Repositories;
 using Npgsql;
 using Compartilhado.Domain.ValueObjects;
 using Compartilhado.Infrastructure.Email;
+using Compartilhado.Presentation.Middlewares;
+using Serilog;
+using Serilog.Events;
+using Serilog.Templates;
 
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -43,6 +47,16 @@ string[] swaggerXmlFiles =
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
+
+// Uma linha JSON por evento, lida pelo agente Datadog. "level" e "message" são
+// atributos reservados do Datadog; rest() traz as demais propriedades, como o
+// CorrelationId e os dd.trace_id/dd.span_id injetados pelo tracer (DD_LOGS_INJECTION).
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(new ExpressionTemplate(
+        "{ {timestamp: @t, level: @l, message: @m, exception: @x, logger: SourceContext, ..rest()} }\n")));
 
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
@@ -157,7 +171,17 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseMiddleware<Compartilhado.Presentation.Middlewares.ExceptionMiddleware>();
+// Correlação primeiro, para o id estar no escopo de todos os logs abaixo, inclusive
+// o log de request, que fica antes do ExceptionMiddleware para registrar o status final.
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseSerilogRequestLogging(options =>
+{
+    options.GetLevel = (http, _, ex) =>
+        ex is not null || http.Response.StatusCode >= 500 ? LogEventLevel.Error
+        : http.Request.Path.StartsWithSegments("/health") ? LogEventLevel.Verbose
+        : LogEventLevel.Information;
+});
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
