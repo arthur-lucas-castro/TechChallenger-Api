@@ -16,9 +16,13 @@ on:
 # Nomes fixos definidos pelo Terraform do TechChallenger-infra-kubernetes
 # (variáveis cluster_name e ecr_repository_name). A URL do ECR depende do ID da
 # conta AWS e é descoberta em tempo de execução.
+# Parâmetros SSM publicados pelo workflow ssm-parameters.yml do TechChallenger-infra-kubernetes.
 env:
   EKS_CLUSTER_NAME: techchallenger-fase1
   ECR_REPOSITORY_NAME: techchallenger-fase1
+  DB_PARAM_PREFIX: /techchallenger/db
+  JWT_SECRET_PARAM: /techchallenger/jwt/secret
+  EMAIL_PARAM_PREFIX: /techchallenger/email
 
 jobs:
   build-and-test:
@@ -183,13 +187,32 @@ jobs:
       - name: Aplicar ConfigMap
         run: kubectl apply -f k8s/aws/configmap.yaml
 
-      - name: Aplicar Secret (a partir de um único GitHub Actions Secret no formato .env)
+      - name: Aplicar Secret (a partir do SSM)
         run: |
-          printf '%s\n' "${{ secrets.K8S_SECRET_ENV }}" > techchallenger-secret.env
+          param() {
+            aws ssm get-parameter --name "$1" --with-decryption \
+              --query 'Parameter.Value' --output text
+          }
+          db_host=$(param "$DB_PARAM_PREFIX/host")
+          db_name=$(param "$DB_PARAM_PREFIX/name")
+          db_username=$(param "$DB_PARAM_PREFIX/username")
+          db_password=$(param "$DB_PARAM_PREFIX/password")
+          jwt_secret=$(param "$JWT_SECRET_PARAM")
+          email_host=$(param "$EMAIL_PARAM_PREFIX/host")
+          email_username=$(param "$EMAIL_PARAM_PREFIX/username")
+          email_password=$(param "$EMAIL_PARAM_PREFIX/password")
+          echo "::add-mask::$db_password"
+          echo "::add-mask::$jwt_secret"
+          echo "::add-mask::$email_password"
+
+          # Aspas na senha: um ';' nela encerraria o valor na connection string.
           kubectl create secret generic techchallenger-api-secret \
-            --from-env-file=techchallenger-secret.env \
-            --dry-run=client -o yaml | kubectl apply -f -
-          rm -f techchallenger-secret.env
+            --from-literal=ConnectionStrings__Default="Host=$db_host;Port=5432;Database=$db_name;Username=$db_username;Password=\"$db_password\"" \
+            --from-literal=Jwt__SecretKey="$jwt_secret" \
+            --from-literal=Email__Host="$email_host" \
+            --from-literal=Email__Username="$email_username" \
+            --from-literal=Email__Password="$email_password" \
+            --dry-run=client -o yaml | kubectl apply -f - > /dev/null
 
       - name: Aplicar Deployment
         run: kubectl apply -f k8s/aws/deployment.yaml
@@ -199,6 +222,11 @@ jobs:
 
       - name: Aplicar HPA
         run: kubectl apply -f k8s/aws/hpa.yaml
+
+      # envFrom só é lido na criação do pod: sem o restart, um redeploy com a
+      # mesma tag de imagem não recarrega alterações do Secret/ConfigMap.
+      - name: Reiniciar pods para recarregar Secret e ConfigMap
+        run: kubectl rollout restart deployment/techchallenger-api
 
       - name: Aguardar rollout do Deployment
         run: kubectl rollout status deployment/techchallenger-api --timeout=180s

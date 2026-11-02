@@ -13,8 +13,10 @@ on:
         default: "no"
 
 # Nome fixo definido pelo Terraform do TechChallenger-infra-kubernetes (variável cluster_name).
+# Parâmetros SSM publicados pelo workflow ssm-parameters.yml do TechChallenger-infra-kubernetes.
 env:
   EKS_CLUSTER_NAME: techchallenger-fase1
+  DB_PARAM_PREFIX: /techchallenger/db
 
 jobs:
   database-migration:
@@ -45,11 +47,27 @@ jobs:
             --name "$EKS_CLUSTER_NAME" \
             --region us-east-1
 
-      - name: Publicar script de migração como ConfigMap
+      - name: Publicar script e credenciais do banco no cluster
         run: |
+          param() {
+            aws ssm get-parameter --name "$DB_PARAM_PREFIX/$1" --with-decryption \
+              --query 'Parameter.Value' --output text
+          }
+          host=$(param host)
+          name=$(param name)
+          username=$(param username)
+          password=$(param password)
+          echo "::add-mask::$password"
+
           kubectl create configmap db-migration-script \
             --from-file=migration.sql=database/init/01_schema.sql \
             --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic db-migration-env \
+            --from-literal=PGHOST="$host" \
+            --from-literal=PGDATABASE="$name" \
+            --from-literal=PGUSER="$username" \
+            --from-literal=PGPASSWORD="$password" \
+            --dry-run=client -o yaml | kubectl apply -f - > /dev/null
 
       - name: Remover execução anterior do Job de migração
         run: kubectl delete job db-migration --ignore-not-found=true
@@ -74,25 +92,16 @@ jobs:
                     image: postgres:16-alpine
                     command: ["psql"]
                     args:
-                      - "-h"
-                      - "$(DB_HOST)"
-                      - "-U"
-                      - "$(DB_USER)"
-                      - "-d"
-                      - "$(DB_NAME)"
                       - "-v"
                       - "ON_ERROR_STOP=1"
                       - "-f"
                       - "/migrations/migration.sql"
                     env:
-                      - name: DB_HOST
-                        value: "${{ secrets.DB_HOST }}"
-                      - name: DB_USER
-                        value: "${{ secrets.DB_USER }}"
-                      - name: DB_NAME
-                        value: "${{ secrets.DB_NAME }}"
-                      - name: PGPASSWORD
-                        value: "${{ secrets.DB_PASSWORD }}"
+                      - name: PGSSLMODE
+                        value: require
+                    envFrom:
+                      - secretRef:
+                          name: db-migration-env
                     volumeMounts:
                       - name: migration-script
                         mountPath: /migrations
@@ -110,3 +119,7 @@ jobs:
             exit 1
           fi
           kubectl logs job/db-migration
+
+      - name: Remover credenciais do banco do cluster
+        if: always()
+        run: kubectl delete secret db-migration-env --ignore-not-found=true
