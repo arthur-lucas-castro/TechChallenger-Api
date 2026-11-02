@@ -14,6 +14,7 @@ public class NotificacaoStatusOrdemServicoHandlerTests
     private readonly Mock<IClienteRepositorio> _clienteRepoMock;
     private readonly Mock<IEmailService> _emailServiceMock;
     private readonly Mock<ILogger<NotificacaoStatusOrdemServicoHandler>> _loggerMock;
+    private readonly Mock<IMetricasService> _metricasMock;
     private readonly NotificacaoStatusOrdemServicoHandler _handler;
 
     public NotificacaoStatusOrdemServicoHandlerTests()
@@ -21,8 +22,9 @@ public class NotificacaoStatusOrdemServicoHandlerTests
         _clienteRepoMock = new Mock<IClienteRepositorio>();
         _emailServiceMock = new Mock<IEmailService>();
         _loggerMock = new Mock<ILogger<NotificacaoStatusOrdemServicoHandler>>();
+        _metricasMock = new Mock<IMetricasService>();
         _handler = new NotificacaoStatusOrdemServicoHandler(
-            _clienteRepoMock.Object, _emailServiceMock.Object, _loggerMock.Object);
+            _clienteRepoMock.Object, _emailServiceMock.Object, _loggerMock.Object, _metricasMock.Object);
     }
 
     private static Cliente CriarCliente(int id = 10) =>
@@ -116,6 +118,50 @@ public class NotificacaoStatusOrdemServicoHandlerTests
 
         // Act & Assert — a exceção é capturada e logada, nunca propagada
         await _handler.HandleAsync(CriarEventoStatus(StatusOrdemServico.Recebida, StatusOrdemServico.EmDiagnostico));
+    }
+
+    [Fact]
+    public async Task HandleAsync_EmailServiceLancaExcecao_RegistraFalhaDeIntegracaoSmtp()
+    {
+        // Arrange
+        _clienteRepoMock.Setup(r => r.GetByIdAsync(10)).ReturnsAsync(CriarCliente());
+        _emailServiceMock
+            .Setup(e => e.EnviarAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SMTP indisponível"));
+
+        // Act
+        await _handler.HandleAsync(CriarEventoStatus(StatusOrdemServico.Recebida, StatusOrdemServico.EmDiagnostico));
+
+        // Assert
+        _metricasMock.Verify(m => m.FalhaIntegracao("smtp", "notificacao_status_os"), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ConsultaDoClienteFalha_RegistraFalhaDeIntegracaoPostgres()
+    {
+        // Arrange
+        _clienteRepoMock.Setup(r => r.GetByIdAsync(10)).ThrowsAsync(new InvalidOperationException("banco indisponível"));
+
+        // Act
+        await _handler.HandleAsync(CriarEventoStatus(StatusOrdemServico.Recebida, StatusOrdemServico.EmDiagnostico));
+
+        // Assert
+        _metricasMock.Verify(m => m.FalhaIntegracao("postgres", "notificacao_status_os"), Times.Once);
+        _emailServiceMock.Verify(
+            e => e.EnviarAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_EmailEnviado_NaoRegistraFalha()
+    {
+        // Arrange
+        _clienteRepoMock.Setup(r => r.GetByIdAsync(10)).ReturnsAsync(CriarCliente());
+
+        // Act
+        await _handler.HandleAsync(CriarEventoStatus(StatusOrdemServico.Recebida, StatusOrdemServico.EmDiagnostico));
+
+        // Assert
+        _metricasMock.Verify(m => m.FalhaIntegracao(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     // ── OrcamentoRecusadoEvent ───────────────────────────────────────────────

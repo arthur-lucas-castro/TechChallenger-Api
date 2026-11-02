@@ -73,7 +73,9 @@ A API também envia métricas de negócio por DogStatsD ao agente do node (`DD_A
 |---|---|---|---|
 | `oficina.os.criada` | count | — | `OrdemServicoService.CriarAsync` |
 | `oficina.os.tempo_no_status` | distribution (segundos) | `status` (status que a OS deixou) | `MetricasStatusOrdemServicoHandler`, a cada `OrdemServicoStatusAlteradoEvent` |
-| `oficina.api.falha` | count | `controller`, `acao`, `tipo` (`dominio`, `validacao`, `nao_encontrado`, `operacao_invalida`, `erro_interno`) | `ExceptionMiddleware` |
+| `oficina.api.falha` | count | `controller`, `acao`, `tipo` (`dominio`, `validacao`, `nao_encontrado`, `operacao_invalida`, `erro_interno`) | `ExceptionMiddleware`. Falha de banco (`DbException` em qualquer nível) vira 500 e `erro_interno` |
+| `oficina.integracao.falha` | distribution (valor 1; consultar com `count:`) | `integracao` (`smtp`, `postgres`), `operacao` | `NotificacaoStatusOrdemServicoHandler`, quando a notificação da OS não sai. A Lambda de autenticação envia a mesma métrica com `integracao:lambda_auth` |
+| `oficina.integracao.retentativa` | count | `integracao`, `operacao` | `SmtpEmailService`, a cada nova tentativa do Polly |
 
 O tempo em cada status é a diferença entre a transição de saída e a de entrada (`DataUltimaAlteracao`, ou `DataCriacao` para `Recebida`). Para o dashboard, Diagnóstico = `status:EmDiagnostico`, Execução = `status:EmExecucao` e Finalização = `status:Finalizada` (da finalização até a entrega).
 

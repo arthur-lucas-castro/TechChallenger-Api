@@ -23,6 +23,7 @@ As decisões sobre essa divisão estão registradas em [docs/adr/](docs/adr/).
 - [Fluxo de deploy](#fluxo-de-deploy)
 - [Execução local](#execução-local)
 - [Deploy em Kubernetes](#deploy-em-kubernetes)
+- [Observabilidade (Datadog)](#observabilidade-datadog)
 - [Schema do banco](#schema-do-banco)
 
 ## Arquitetura da aplicação
@@ -172,7 +173,7 @@ Pré-requisito: o cluster precisa ter sido criado pelo **infra-kubernetes**, que
 ```bash
 aws eks update-kubeconfig --name techchallenger-fase1 --region us-east-1
 ECR_REPOSITORY_URL=$(aws ecr describe-repositories --repository-names techchallenger-fase1 --query 'repositories[0].repositoryUri' --output text)
-sed -i "s#IMAGE_PLACEHOLDER#$ECR_REPOSITORY_URL:<tag>#" k8s/aws/deployment.yaml
+sed -i -e "s#IMAGE_PLACEHOLDER#$ECR_REPOSITORY_URL:<tag>#" -e "s#VERSION_PLACEHOLDER#\"<tag>\"#" k8s/aws/deployment.yaml
 
 kubectl apply -f k8s/aws/configmap.yaml
 kubectl apply -f k8s/aws/deployment.yaml
@@ -181,6 +182,22 @@ kubectl apply -f k8s/aws/hpa.yaml
 kubectl rollout status deployment/techchallenger-api --timeout=180s
 # endereço público: output api_gateway_endpoint do infra-kubernetes
 ```
+
+## Observabilidade (Datadog)
+
+A estratégia completa, incluindo por que não se usa a integração AWS do Datadog no Learner Lab, está no [ADR-004 do infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes/blob/main/docs/adr/ADR-004-observabilidade-datadog.md). Nesta API:
+
+| O que | Como |
+|---|---|
+| **Traces e latência por rota (APM)** | Tracer .NET injetado no pod pelo Cluster Agent do Datadog (label `admission.datadoghq.com/enabled`), sem mudar o Dockerfile. Queries no RDS aparecem como spans `postgresql` |
+| **Logs estruturados** | Serilog em JSON no stdout (`timestamp`, `level`, `message`, `logger` e propriedades), lidos pelo agente com `source:csharp` |
+| **Correlação** | `CorrelationIdMiddleware` reaproveita o `x-correlation-id` do API Gateway (o `requestId` dos access logs) ou gera um, devolve no header da resposta e grava em todos os logs da requisição. `DD_LOGS_INJECTION` liga cada log ao trace (`dd.trace_id`) |
+| **Métricas de negócio** | DogStatsD para o agente do node: `oficina.os.criada`, `oficina.os.tempo_no_status`, `oficina.api.falha`, `oficina.integracao.falha` e `oficina.integracao.retentativa` (tabela em [docs/K8S.md](docs/K8S.md)) |
+| **Healthcheck** | `GET /health`, usado pelas probes do Kubernetes e pelo teste de uptime |
+
+Sem o agente (execução local e docker-compose), `DD_AGENT_HOST` fica vazio e as métricas são descartadas; os logs continuam em JSON no console.
+
+Pré-requisitos no cluster, todos do **infra-kubernetes**: nodes `t3.small`, API key no SSM e o workflow `datadog.yml` executado antes do deploy desta API. O tracer só é injetado em pods criados depois que o agente está no ar; o `ci-cd.yml` já faz `rollout restart` a cada deploy.
 
 ## Schema do banco
 

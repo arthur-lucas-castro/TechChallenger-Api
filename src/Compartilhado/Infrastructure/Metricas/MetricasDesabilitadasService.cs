@@ -12,5 +12,9 @@ namespace Compartilhado.Infrastructure.Metricas
         public void TempoNoStatus(string status, TimeSpan duracao) { }
 
         public void FalhaRequisicao(string controller, string acao, string tipo) { }
+
+        public void FalhaIntegracao(string integracao, string operacao) { }
+
+        public void RetentativaIntegracao(string integracao, string operacao) { }
     }
 }

@@ -23,5 +23,11 @@ namespace Compartilhado.Infrastructure.Metricas
 
         public void FalhaRequisicao(string controller, string acao, string tipo)
             => _statsd.Increment("api.falha", tags: [$"controller:{controller}", $"acao:{acao}", $"tipo:{tipo}"]);
+
+        public void FalhaIntegracao(string integracao, string operacao)
+            => _statsd.Distribution("integracao.falha", 1, tags: [$"integracao:{integracao}", $"operacao:{operacao}"]);
+
+        public void RetentativaIntegracao(string integracao, string operacao)
+            => _statsd.Increment("integracao.retentativa", tags: [$"integracao:{integracao}", $"operacao:{operacao}"]);
     }
 }

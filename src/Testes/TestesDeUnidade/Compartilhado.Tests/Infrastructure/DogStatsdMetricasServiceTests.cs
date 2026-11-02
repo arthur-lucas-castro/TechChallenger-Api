@@ -43,4 +43,28 @@ public class DogStatsdMetricasServiceTests
             "api.falha", 1, 1.0,
             It.Is<string[]>(t => t.SequenceEqual(new[] { "controller:OrdemServico", "acao:IniciarDiagnostico", "tipo:dominio" })), null, null), Times.Once);
     }
+
+    [Fact]
+    public void FalhaIntegracao_EnviaDistribuicaoComValorUm()
+    {
+        // Act
+        _service.FalhaIntegracao("smtp", "notificacao_status_os");
+
+        // Assert
+        _statsdMock.Verify(s => s.Distribution(
+            "integracao.falha", 1.0, 1.0,
+            It.Is<string[]>(t => t.SequenceEqual(new[] { "integracao:smtp", "operacao:notificacao_status_os" })), null), Times.Once);
+    }
+
+    [Fact]
+    public void RetentativaIntegracao_IncrementaContadorComTags()
+    {
+        // Act
+        _service.RetentativaIntegracao("smtp", "envio_email");
+
+        // Assert
+        _statsdMock.Verify(s => s.Increment(
+            "integracao.retentativa", 1, 1.0,
+            It.Is<string[]>(t => t.SequenceEqual(new[] { "integracao:smtp", "operacao:envio_email" })), null, null), Times.Once);
+    }
 }
