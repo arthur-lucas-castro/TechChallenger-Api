@@ -77,4 +77,3 @@ GKE Autopilot, Cloud Functions, Cloud SQL for PostgreSQL e API Gateway.
 
 - O SES não foi usado para e-mail: exige sair do sandbox e credenciais SMTP via IAM, indisponíveis no lab. O envio usa SMTP externo, trocável só por configuração.
 - O módulo `terraform-aws-modules/eks` não foi usado, porque consulta uma role que o lab bloqueia; o EKS é declarado com recursos diretos.
-- Migrar para uma conta AWS comum exige trocar a `LabRole` por roles próprias (IRSA no EKS, role de execução da Lambda) e pode habilitar a integração AWS do Datadog. O resto do Terraform não muda.

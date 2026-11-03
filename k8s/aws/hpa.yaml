@@ -10,10 +10,11 @@ spec:
     kind: Deployment
     name: techchallenger-api
   # Decisão e dimensionamento em docs/adr/ADR-006-escalabilidade-com-hpa.md.
-  # Com nodes t3.small (11 pods por node), 3 réplicas cabem junto dos pods de
+  # Mínimo de 2 réplicas para manter a API disponível na perda de um pod ou node.
+  # Com nodes t3.small (11 pods por node), 5 réplicas cabem junto dos pods de
   # sistema e do agente Datadog nos 2 nodes do node group.
-  minReplicas: 1
-  maxReplicas: 3
+  minReplicas: 2
+  maxReplicas: 5
   metrics:
     - type: Resource
       resource:

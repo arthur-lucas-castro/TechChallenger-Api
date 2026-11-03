@@ -44,22 +44,21 @@ O HPA (`autoscaling/v2`) ajusta o número de pods da API a partir das métricas 
 
 | Parâmetro | Valor | Motivo |
 |---|---|---|
-| `minReplicas` | 1 | Custo: fora do pico uma réplica atende a oficina |
-| `maxReplicas` | 3 | Cabe nos 2 nodes `t3.small` (22 slots de pod) junto com os pods de sistema e do Datadog, deixando folga para o rolling update |
+| `minReplicas` | 2 | Disponibilidade: a API continua atendendo na perda de um pod ou durante o rolling update |
+| `maxReplicas` | 5 | Cabe nos 2 nodes `t3.small` (22 slots de pod) junto com os pods de sistema e do Datadog |
 | Métrica de CPU | 60% do request (100m) | Escala antes da saturação; o limit de 250m dá margem para o pico durante a criação do pod novo |
 | Métrica de memória | 70% do request (192Mi) | O tracer do Datadog aumenta a memória base; escalar por memória evita OOMKill antes do limit (384Mi) |
-| Fonte das métricas | metrics-server, instalado pelo `infra-apply.yml` do infra-kubernetes | Pré-requisito do HPA; componente do cluster ([ADR-001](ADR-001-localizacao-manifestos-kubernetes.md)) |
-| Node group | `t3.small`, mínimo 1, desejado 2, máximo 3 | Capacidade para as 3 réplicas; o crescimento do node group é manual, pelo `node_group_desired_size` |
+| Fonte das métricas | metrics-server, instalado pelo `infra-apply.yml` do TechChallenger-infra-kubernetes | Pré-requisito do HPA; componente do cluster ([ADR-001](ADR-001-localizacao-manifestos-kubernetes.md)) |
+| Node group | `t3.small`, mínimo 1, desejado 2, máximo 3 | Capacidade para as 5 réplicas; o crescimento do node group é manual, pelo `node_group_desired_size` |
 
 Disponibilidade:
 
-- O Deployment usa `RollingUpdate` com `maxSurge: 0` e `maxUnavailable: 1`, para não precisar de um slot extra durante o deploy. Com uma única réplica isso causa uma indisponibilidade curta no deploy; com o HPA acima de 1, o rolling update troca um pod por vez.
+- O Deployment usa `RollingUpdate` com `maxSurge: 0` e `maxUnavailable: 1`, para não precisar de um slot extra durante o deploy. Como o HPA mantém no mínimo 2 réplicas, o rolling update troca um pod por vez e sempre há pelo menos um pod atendendo.
 - As probes de liveness e readiness em `/health` tiram do NLB um pod que não responde.
 - O teste de uptime do Datadog e o monitor "API sem réplicas disponíveis" avisam quando o Deployment fica sem pod pronto.
 
 ## Consequências
 
 - O HPA reage a CPU e memória, não a requisições por segundo. Uma carga de I/O (consultas lentas ao banco) pode não disparar a escala; nesse caso o sinal é a latência p95 no Datadog.
-- **Escala de nodes é manual.** Se as 3 réplicas não couberem (por exemplo, depois de instalar mais componentes no cluster), elas ficam `Pending`, e é preciso aumentar o `node_group_desired_size`. Fora do Learner Lab, o próximo passo é o Cluster Autoscaler com IRSA (Opção C).
-- O RDS `db.t3.micro` aceita um número limitado de conexões. Cada réplica abre o próprio pool do EF Core; ao subir o `maxReplicas`, é preciso revisar o tamanho do pool e a classe do RDS.
-- Para demonstrar a escala no vídeo, basta gerar carga na API (por exemplo, repetir a collection E2E em paralelo) e acompanhar `kubectl get hpa -w` e o widget "Réplicas da API (HPA)" do dashboard.
+- **Escala de nodes é manual.** Se as 5 réplicas não couberem (por exemplo, depois de instalar mais componentes no cluster), elas ficam `Pending`, e é preciso aumentar o `node_group_desired_size`.
+- O RDS `db.t3.micro` aceita um número limitado de conexões, e cada réplica abre o próprio pool do EF Core.

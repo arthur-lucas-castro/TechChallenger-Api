@@ -77,5 +77,4 @@ A API já tinha autenticação JWT própria para funcionários (`POST /Auth/logi
 - A API não depende de rede para validar tokens: a verificação é local, sem chamada à Lambda.
 - Rotacionar o segredo exige atualizar o SSM, aguardar um cold start da Lambda e fazer um deploy da API, nessa ordem; tokens antigos param de valer.
 - O `POST /Auth/login` legado da API continua funcionando, mas o caminho oficial é o da Lambda, que é o único com refresh token.
-- O Lambda Authorizer recomendado no `auth-flow.md` ficou fora desta entrega: a proteção exigida já é garantida pelo middleware, e o authorizer só anteciparia a recusa para a borda. É a próxima evolução prevista, sem mudar o contrato dos tokens.
-- Se o time migrar para RS256 + JWKS, o JWT authorizer nativo do HTTP API passa a ser possível e substitui o Lambda Authorizer, barrando requisições sem token na borda.
+- O Lambda Authorizer recomendado no `auth-flow.md` ficou fora desta entrega: a proteção exigida já é garantida pelo middleware, e o authorizer só anteciparia a recusa para a borda.

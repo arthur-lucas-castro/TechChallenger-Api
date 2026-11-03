@@ -162,22 +162,9 @@ A tabela `auth_schema_migration (versao PK, aplicada_em)` só registra as migrat
 
 | Ajuste | Onde | Motivo |
 |---|---|---|
-| Coluna `cliente.status` (`ATIVO`, `INATIVO`, `BLOQUEADO`) com `CHECK` e valor padrão `ATIVO` | Migration `V001` (severless) | A autenticação por CPF precisa consultar a situação do cliente. O valor padrão mantém compatíveis os `INSERT`s da API, que não conhece a coluna |
+| Coluna `cliente.status` (`ATIVO`, `INATIVO`, `BLOQUEADO`) com `CHECK` e valor padrão `ATIVO` | Migration `V001` (TechChallenger-severless) | A autenticação por CPF precisa consultar a situação do cliente. O valor padrão mantém compatíveis os `INSERT`s da API, que não conhece a coluna |
 | Índice `ix_cliente_numerodocumento` | `V001` | Cada `POST /auth` busca o cliente pelo CPF; sem índice seria varredura da tabela |
 | Tabela `usuario` (e-mail único, senha em bcrypt, tipo) | `01_schema.sql` | Login de `Adm` e `Funcionario` por e-mail e senha, com papéis usados no `[Authorize(Roles)]` |
 | Tabela `refresh_token`, com índices por família, cliente e usuário | `V002` e `V003` | Sessões com rotação e detecção de reuso. Só o hash SHA-256 do token é guardado. O `CHECK` garante que cada token tem exatamente um dono (cliente ou usuário) |
 | Tabela `auth_schema_migration` | `V001` | Controle das migrations da Lambda; todas são idempotentes e podem rodar de novo |
 | `dataultimaalteracao` atualizada a cada transição | Entidade `OrdemServico` | Base da métrica de tempo médio por status do dashboard |
-
-## 5. Ajustes recomendados, ainda não aplicados
-
-Encontrados na revisão do modelo para esta documentação. Nenhum é necessário para o funcionamento atual, mas melhoram consistência e desempenho:
-
-| Ajuste | Benefício |
-|---|---|
-| `UNIQUE` em `cliente.numerodocumento` (hoje é só um índice) | Impede cadastrar o mesmo CPF duas vezes; hoje a autenticação pegaria um dos registros |
-| `UNIQUE` em `orcamento.ordemservicoid`, `servicoexecucao.servicosolicitadoid` e `produtoestoque.pecaid` | Torna as relações 1:0..1 do domínio uma garantia do banco |
-| Índices em `ordemservico (clienteid)`, `ordemservico (veiculoid)`, `ordemservico (status)`, `servicosolicitado (ordemservicoid)` e `pecasolicitada (ordemservicoid)` | O PostgreSQL não indexa chaves estrangeiras sozinho; acelera a listagem de OS por status e o carregamento dos itens |
-| `CHECK` de quantidades maiores que zero e de preços e estoque não negativos | Hoje só o domínio valida; o banco passaria a proteger também contra scripts manuais |
-| `ON DELETE RESTRICT`, em vez de `CASCADE`, de `servico` e `peca` para os itens solicitados | Hoje apagar um serviço do catálogo apaga o histórico das OS que o usaram |
-| `timestamptz` nas tabelas da API | As datas são gravadas em UTC num `timestamp` sem fuso (`Npgsql.EnableLegacyTimestampBehavior`); `timestamptz` deixa o fuso explícito, como já é nas tabelas da autenticação |

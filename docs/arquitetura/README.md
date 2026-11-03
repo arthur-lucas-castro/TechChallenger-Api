@@ -8,7 +8,7 @@
 |---|---|
 | [Diagrama de componentes](diagrama-de-componentes.md) | Nuvem, API Gateway, Lambda, EKS, RDS, SSM, CI/CD e Datadog, com fronteiras de rede |
 | [Diagramas de sequência](diagramas-de-sequencia.md) | Autenticação por CPF e consumo de rota protegida; abertura da ordem de serviço; ciclo de status até a entrega |
-| [Modelo relacional](../banco-de-dados/modelo-relacional.md) | Justificativa do PostgreSQL, diagrama ER, relacionamentos, ajustes feitos e recomendados |
+| [Modelo relacional](../banco-de-dados/modelo-relacional.md) | Justificativa do PostgreSQL, diagrama ER, relacionamentos e ajustes feitos |
 
 ## RFCs (decisões técnicas)
 
@@ -22,12 +22,12 @@
 
 | ADR | Decisão | Repositório |
 |---|---|---|
-| [ADR-001](../adr/ADR-001-localizacao-manifestos-kubernetes.md) | Manifestos Kubernetes da aplicação ficam com a aplicação; componentes do cluster, no infra-kubernetes | Api / infra-kubernetes |
-| [ADR-002](https://github.com/arthur-lucas-castro/TechChallenger-severless/blob/main/docs/adr/ADR-002-localizacao-terraform-lambda-api-gateway.md) | Terraform da Lambda e do API Gateway fica no infra-kubernetes | severless |
-| [ADR-003](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes/blob/main/docs/adr/ADR-003-integracao-api-gateway-eks.md) | API Gateway → VPC Link → NLB interno → NodePort | infra-kubernetes |
-| [ADR-004](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes/blob/main/docs/adr/ADR-004-observabilidade-datadog.md) | Observabilidade com Datadog sem a integração AWS | infra-kubernetes |
-| [ADR-005](../adr/ADR-005-padrao-de-comunicacao.md) | REST síncrono na borda e eventos de domínio em processo entre os contextos | Api |
-| [ADR-006](../adr/ADR-006-escalabilidade-com-hpa.md) | HPA por CPU e memória, de 1 a 3 réplicas | Api |
+| [ADR-001](../adr/ADR-001-localizacao-manifestos-kubernetes.md) | Manifestos Kubernetes da aplicação ficam com a aplicação; componentes do cluster, no TechChallenger-infra-kubernetes | TechChallenger-Api / TechChallenger-infra-kubernetes |
+| [ADR-002](https://github.com/arthur-lucas-castro/TechChallenger-severless/blob/main/docs/adr/ADR-002-localizacao-terraform-lambda-api-gateway.md) | Terraform da Lambda e do API Gateway fica no TechChallenger-infra-kubernetes | TechChallenger-severless |
+| [ADR-003](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes/blob/main/docs/adr/ADR-003-integracao-api-gateway-eks.md) | API Gateway → VPC Link → NLB interno → NodePort | TechChallenger-infra-kubernetes |
+| [ADR-004](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes/blob/main/docs/adr/ADR-004-observabilidade-datadog.md) | Observabilidade com Datadog sem a integração AWS | TechChallenger-infra-kubernetes |
+| [ADR-005](../adr/ADR-005-padrao-de-comunicacao.md) | REST síncrono na borda e eventos de domínio em processo entre os contextos | TechChallenger-Api |
+| [ADR-006](../adr/ADR-006-escalabilidade-com-hpa.md) | HPA por CPU e memória, de 2 a 5 réplicas | TechChallenger-Api |
 
 ## Documentos por repositório
 
