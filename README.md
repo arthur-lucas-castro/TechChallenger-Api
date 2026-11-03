@@ -17,6 +17,25 @@ O projeto está dividido em quatro repositórios:
 
 As decisões sobre essa divisão estão registradas em [docs/adr/](docs/adr/).
 
+## Documentação da arquitetura
+
+O índice completo está em **[docs/arquitetura/](docs/arquitetura/README.md)**:
+
+- [Diagrama de componentes](docs/arquitetura/diagrama-de-componentes.md): nuvem, APIs, banco e monitoramento;
+- [Diagramas de sequência](docs/arquitetura/diagramas-de-sequencia.md): autenticação por CPF e abertura e ciclo da ordem de serviço;
+- RFCs: [nuvem](docs/rfc/RFC-001-escolha-da-nuvem.md), [banco de dados](docs/rfc/RFC-002-banco-de-dados.md) e [autenticação](docs/rfc/RFC-003-estrategia-de-autenticacao.md);
+- ADRs: [padrão de comunicação](docs/adr/ADR-005-padrao-de-comunicacao.md), [escalabilidade com HPA](docs/adr/ADR-006-escalabilidade-com-hpa.md) e os [demais](docs/adr/);
+- [Modelo relacional](docs/banco-de-dados/modelo-relacional.md): justificativa do banco, diagrama ER e relacionamentos.
+
+## Links
+
+| O quê | Onde |
+|---|---|
+| API publicada | `<api_gateway_endpoint>`: output `api_gateway_endpoint` do infra-kubernetes, também exibido no fim do job `deploy-k8s`. A URL muda quando o API Gateway é recriado |
+| Swagger | `<api_gateway_endpoint>/swagger` |
+| Postman | [Teste ponta a ponta pelo gateway](docs/TechChallenger-Gateway-E2E.postman_collection.json) e [collection completa](docs/TechChallenger.postman_collection.json) |
+| Dashboard | "Oficina — Operação" no Datadog, criado pelo `observability.yml` do infra-kubernetes |
+
 ## Sumário
 
 - [Arquitetura da aplicação](#arquitetura-da-aplicação)
