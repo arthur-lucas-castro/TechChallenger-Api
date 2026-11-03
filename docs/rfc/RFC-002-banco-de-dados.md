@@ -55,7 +55,6 @@ Nas fases 1 e 2 o banco já era PostgreSQL em container, com schema em `database
 
 ## Consequências
 
-- **Banco único compartilhado por dois serviços.** A Lambda lê `cliente` e `usuario` e é dona das tabelas `refresh_token` e `auth_schema_migration`; a API é dona do resto. Cada lado tem as próprias migrations (`database/init` na API, `db/migrations` no severless), aplicadas por Jobs no EKS, já que o RDS não é público.
+- **Banco único compartilhado por dois serviços.** A Lambda lê `cliente` e `usuario` e é dona das tabelas `refresh_token` e `auth_schema_migration`; a API é dona do resto. Cada lado tem as próprias migrations (`database/init` na API, `db/migrations` no TechChallenger-severless), aplicadas por Jobs no EKS, já que o RDS não é público.
 - **Conexões:** a Lambda usa pool de 1 conexão por instância; a concorrência da função limita as conexões abertas no RDS.
-- **Single-AZ:** escolha de custo. Para produção real, o próximo passo é Multi-AZ, que só muda variáveis do Terraform.
-- **Leitura em escala:** se os relatórios crescerem, uma read replica do RDS atende sem mudar o modelo.
+- **Single-AZ:** escolha de custo.

@@ -13,7 +13,7 @@ O projeto está dividido em quatro repositórios:
 | [TechChallenger-infra-database](https://github.com/arthur-lucas-castro/TechChallenger-infra-database) | Terraform do RDS PostgreSQL |
 | [TechChallenger-severless](https://github.com/arthur-lucas-castro/TechChallenger-severless) | Lambda (Node.js) de autenticação por CPF + API Gateway |
 
-**Ordem de provisionamento:** infra-kubernetes → infra-database → severless / Api.
+**Ordem de provisionamento:** TechChallenger-infra-kubernetes → TechChallenger-infra-database → TechChallenger-severless / TechChallenger-Api.
 
 As decisões sobre essa divisão estão registradas em [docs/adr/](docs/adr/).
 
@@ -31,10 +31,10 @@ O índice completo está em **[docs/arquitetura/](docs/arquitetura/README.md)**:
 
 | O quê | Onde |
 |---|---|
-| API publicada | `<api_gateway_endpoint>`: output `api_gateway_endpoint` do infra-kubernetes, também exibido no fim do job `deploy-k8s`. A URL muda quando o API Gateway é recriado |
+| API publicada | `<api_gateway_endpoint>`: output `api_gateway_endpoint` do TechChallenger-infra-kubernetes, também exibido no fim do job `deploy-k8s`. A URL muda quando o API Gateway é recriado |
 | Swagger | `<api_gateway_endpoint>/swagger` |
 | Postman | [Teste ponta a ponta pelo gateway](docs/TechChallenger-Gateway-E2E.postman_collection.json) e [collection completa](docs/TechChallenger.postman_collection.json) |
-| Dashboard | "Oficina — Operação" no Datadog, criado pelo `observability.yml` do infra-kubernetes |
+| Dashboard | "Oficina — Operação" no Datadog, criado pelo `observability.yml` do TechChallenger-infra-kubernetes |
 
 ## Sumário
 
@@ -122,11 +122,11 @@ A versão publicada vem do nome da branch de release do PR mergeado (`release/1.
 |---|---|
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Credenciais do Learner Lab. Expiram a cada sessão: renove antes de mergear uma release, ou o deploy automático falha na autenticação da AWS |
 
-O nome do cluster EKS e do repositório ECR não são secrets: ficam fixos no `env` dos workflows (`techchallenger-fase1`, iguais às variáveis `cluster_name` e `ecr_repository_name` do infra-kubernetes). A URL do ECR, que inclui o ID da conta AWS, é descoberta pela pipeline com `aws ecr describe-repositories`.
+O nome do cluster EKS e do repositório ECR não são secrets: ficam fixos no `env` dos workflows (`techchallenger-fase1`, iguais às variáveis `cluster_name` e `ecr_repository_name` do TechChallenger-infra-kubernetes). A URL do ECR, que inclui o ID da conta AWS, é descoberta pela pipeline com `aws ecr describe-repositories`.
 
 ### Parâmetros no SSM
 
-Os dados de banco, JWT e e-mail ficam no SSM Parameter Store, publicados pelo workflow `ssm-parameters.yml` do **infra-kubernetes**. A pipeline os lê a cada execução e falha se algum parâmetro não existir. O `ci-cd.yml` monta o Secret `techchallenger-api-secret`, e o `database-migration.yml` cria um Secret temporário para o Job:
+Os dados de banco, JWT e e-mail ficam no SSM Parameter Store, publicados pelo workflow `ssm-parameters.yml` do **TechChallenger-infra-kubernetes**. A pipeline os lê a cada execução e falha se algum parâmetro não existir. O `ci-cd.yml` monta o Secret `techchallenger-api-secret`, e o `database-migration.yml` cria um Secret temporário para o Job:
 
 | Parâmetro SSM | Variável da API |
 |---|---|
@@ -180,7 +180,7 @@ dotnet test src/TechChallenger-fase1.sln --filter "FullyQualifiedName~Tests"
 
 ```bash
 newman run docs/TechChallenger-Gateway-E2E.postman_collection.json \
-  --env-var baseUrl=<output api_gateway_endpoint do infra-kubernetes> \
+  --env-var baseUrl=<output api_gateway_endpoint do TechChallenger-infra-kubernetes> \
   --env-var admSenha=<senha do Adm>
 ```
 
@@ -207,7 +207,7 @@ kubectl apply -f k8s/local/mailpit.yaml
 
 ### AWS (EKS), manual
 
-Pré-requisito: o cluster precisa ter sido criado pelo **infra-kubernetes**, que também instala o metrics-server usado pelo HPA.
+Pré-requisito: o cluster precisa ter sido criado pelo **TechChallenger-infra-kubernetes**, que também instala o metrics-server usado pelo HPA.
 
 ```bash
 aws eks update-kubeconfig --name techchallenger-fase1 --region us-east-1
@@ -219,12 +219,12 @@ kubectl apply -f k8s/aws/deployment.yaml
 kubectl apply -f k8s/aws/service.yaml
 kubectl apply -f k8s/aws/hpa.yaml
 kubectl rollout status deployment/techchallenger-api --timeout=180s
-# endereço público: output api_gateway_endpoint do infra-kubernetes
+# endereço público: output api_gateway_endpoint do TechChallenger-infra-kubernetes
 ```
 
 ## Observabilidade (Datadog)
 
-A estratégia completa, incluindo por que não se usa a integração AWS do Datadog no Learner Lab, está no [ADR-004 do infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes/blob/main/docs/adr/ADR-004-observabilidade-datadog.md). Nesta API:
+A estratégia completa, incluindo por que não se usa a integração AWS do Datadog no Learner Lab, está no [ADR-004 do TechChallenger-infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes/blob/main/docs/adr/ADR-004-observabilidade-datadog.md). Nesta API:
 
 | O que | Como |
 |---|---|
@@ -236,7 +236,7 @@ A estratégia completa, incluindo por que não se usa a integração AWS do Data
 
 Sem o agente (execução local e docker-compose), não há `DD_DOGSTATSD_URL` nem `DD_AGENT_HOST`, e as métricas são descartadas; os logs continuam em JSON no console.
 
-Pré-requisitos no cluster, todos do **infra-kubernetes**: nodes `t3.small`, API key no SSM e o workflow `datadog.yml` executado antes do deploy desta API. O tracer só é injetado em pods criados depois que o agente está no ar; o `ci-cd.yml` já faz `rollout restart` a cada deploy.
+Pré-requisitos no cluster, todos do **TechChallenger-infra-kubernetes**: nodes `t3.small`, API key no SSM e o workflow `datadog.yml` executado antes do deploy desta API. O tracer só é injetado em pods criados depois que o agente está no ar; o `ci-cd.yml` já faz `rollout restart` a cada deploy.
 
 ## Schema do banco
 

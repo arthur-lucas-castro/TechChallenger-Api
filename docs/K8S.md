@@ -1,6 +1,6 @@
 # Manifestos Kubernetes (`/k8s`)
 
-Este documento descreve o propósito de cada manifesto desta pasta. Os arquivos `.yaml` não contêm mais comentários — todo o racional foi centralizado aqui.
+Este documento descreve o propósito de cada manifesto desta pasta.
 
 Existem dois conjuntos de manifestos:
 
@@ -41,7 +41,7 @@ Expõe a API localmente via `NodePort` na porta 8080.
 
 ### `secret.yaml`
 
-Não há arquivo no repositório: a pipeline gera o Secret `techchallenger-api-secret` com os valores do SSM Parameter Store, publicados pelo infra-kubernetes. É equivalente ao Secret local, mas a `ConnectionStrings__Default` aponta para o endpoint do RDS. Não contém `POSTGRES_USER`/`POSTGRES_PASSWORD` porque não há pod de banco neste ambiente — quem gerencia essas credenciais é o RDS.
+Não há arquivo no repositório: a pipeline gera o Secret `techchallenger-api-secret` com os valores do SSM Parameter Store, publicados pelo TechChallenger-infra-kubernetes. É equivalente ao Secret local, mas a `ConnectionStrings__Default` aponta para o endpoint do RDS. Não contém `POSTGRES_USER`/`POSTGRES_PASSWORD` porque não há pod de banco neste ambiente — quem gerencia essas credenciais é o RDS.
 
 ### `configmap.yaml`
 
@@ -51,13 +51,7 @@ Inclui também a configuração do tracer Datadog: `DD_LOGS_INJECTION` (põe `dd
 
 ### `deployment.yaml`
 
-Deployment da API para o ambiente AWS: 1 réplica inicial (o HPA ajusta entre 1 e 3), `image: IMAGE_PLACEHOLDER` (substituído pela pipeline de CI/CD pela URL da imagem no ECR), `imagePullPolicy: Always` (garante que a tag mais recente publicada seja sempre puxada). Mesmas probes de `/health` do ambiente local.
-
-Os `resources.requests`/`limits` (100m/128Mi de request, 250m/256Mi de limit) são mantidos iguais ao ambiente local porque já são enxutos e cabem confortavelmente em um node `t3.micro` (1 vCPU / 1GiB RAM). Referências de dimensionamento para `t3.micro`:
-
-- O allocatable real fica em ~700-800Mi de memória e ~940m de CPU depois do `kube-reserved`/`system-reserved` da AMI do EKS (o restante é consumido por `kubelet`, `kube-proxy`, `aws-node`/VPC CNI, etc.).
-- 2 réplicas × 128Mi/100m de request = 256Mi/200m no total, o que cabe em um único `t3.micro` junto com os daemonsets do sistema — mas para ter HA de verdade (sobreviver à perda de 1 node) é necessário ter pelo menos 2 nodes no node group, não só 2 réplicas.
-- Os limits (256Mi/250m) evitam que um pod estoure a memória do node sozinho; se no futuro for adicionado HPA ou mais pods no mesmo node, revisar esses números com `kubectl top nodes/pods`.
+Deployment da API para o ambiente AWS: 2 réplicas iniciais (o HPA ajusta entre 2 e 5), `image: IMAGE_PLACEHOLDER` (substituído pela pipeline de CI/CD pela URL da imagem no ECR), `imagePullPolicy: Always` (garante que a tag mais recente publicada seja sempre puxada). Mesmas probes de `/health` do ambiente local.
 
 **Datadog.** Com o agente instalado no cluster (workflow `datadog.yml` do [TechChallenger-infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes)), o pod é instrumentado sem mudança no Dockerfile:
 
@@ -83,7 +77,7 @@ Os logs da API saem em JSON (Serilog), uma linha por evento, com `timestamp`, `l
 
 ### `hpa.yaml`
 
-HorizontalPodAutoscaler para o Deployment da API: entre 1 e 3 réplicas, escalando por utilização média de CPU (60% do request) ou memória (70% do request). Com nodes `t3.small`, as 3 réplicas cabem nos 2 nodes do node group junto com os pods de sistema e do Datadog. O node group não cresce sozinho: não há Cluster Autoscaler, então o número de nodes é o `node_group_desired_size` do infra-kubernetes. Decisão, dimensionamento e limites em [ADR-006](adr/ADR-006-escalabilidade-com-hpa.md).
+HorizontalPodAutoscaler para o Deployment da API: entre 2 e 5 réplicas, escalando por utilização média de CPU (60% do request) ou memória (70% do request). Com nodes `t3.small`, as 5 réplicas cabem nos 2 nodes do node group junto com os pods de sistema e do Datadog. O node group não cresce sozinho: não há Cluster Autoscaler, então o número de nodes é o `node_group_desired_size` do TechChallenger-infra-kubernetes. Decisão, dimensionamento e limites em [ADR-006](adr/ADR-006-escalabilidade-com-hpa.md).
 
 ### metrics-server (fora deste repositório)
 
@@ -91,6 +85,6 @@ HorizontalPodAutoscaler para o Deployment da API: entre 1 e 3 réplicas, escalan
 
 ### `service.yaml`
 
-Expõe a API como `NodePort` fixo `30080`, **sem endereço público**. A entrada é o API Gateway (HTTP API) do [TechChallenger-infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes): gateway → VPC Link → NLB interno (criado pelo Terraform) → nodes na porta `30080` → pods na `8080`. O `nodePort` precisa ser igual ao output `api_node_port` do infra-kubernetes; a decisão está no ADR-003 daquele repositório.
+Expõe a API como `NodePort` fixo `30080`, **sem endereço público**. A entrada é o API Gateway (HTTP API) do [TechChallenger-infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes): gateway → VPC Link → NLB interno (criado pelo Terraform) → nodes na porta `30080` → pods na `8080`. O `nodePort` precisa ser igual ao output `api_node_port` do TechChallenger-infra-kubernetes; a decisão está no ADR-003 daquele repositório.
 
 Antes, o Service era `type: LoadBalancer` e criava um NLB público fora do Terraform, o que deixava a API acessível sem passar pelo gateway e impedia o gateway de conhecer o listener do NLB no `plan`.

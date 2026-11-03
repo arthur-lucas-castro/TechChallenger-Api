@@ -76,6 +76,4 @@ Eventos de domínio usados hoje:
 ## Consequências
 
 - O tempo de resposta das mudanças de status inclui o envio do e-mail. Com SMTP lento, a latência p95 sobe; o monitor de latência e o widget de retentativas de SMTP do dashboard mostram isso.
-- **Ponto de atenção encontrado ao documentar:** a baixa de estoque depende do `OrdemServicoIniciadaEvent`, publicado só em `IniciarExecucao` (mudança manual para `EmExecucao`). Quando o próprio cliente aprova o orçamento, `AprovarOrcamento` leva a OS para `EmExecucao` publicando apenas `OrcamentoAprovadoEvent`, que não tem handler; nesse caminho o estoque não recebe baixa. A correção é publicar `OrdemServicoIniciadaEvent` também em `AprovarOrcamento`, ou tratar `OrcamentoAprovadoEvent` no Catálogo.
 - Uma notificação pode se perder se o pod morrer entre o commit e o envio. Para a oficina isso é aceitável: o status correto está no banco e o cliente pode consultar.
-- **Evolução prevista:** se as notificações precisarem de garantia de entrega ou de outros canais (SMS, WhatsApp), o handler de notificação passa a publicar numa fila (SQS) consumida por uma Lambda, com uma tabela outbox na mesma transação da OS. Os agregados e os outros handlers não mudam, porque já falam por eventos.
