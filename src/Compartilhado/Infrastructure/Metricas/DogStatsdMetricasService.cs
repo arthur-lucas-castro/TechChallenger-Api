@@ -4,7 +4,7 @@ using StatsdClient;
 namespace Compartilhado.Infrastructure.Metricas
 {
     /// <summary>
-    /// Envia as métricas por UDP ao agente Datadog do node (DD_AGENT_HOST, porta 8125).
+    /// Envia as métricas ao agente Datadog do node, pelo endereço resolvido em EnderecoDogStatsd.
     /// O cliente acrescenta as tags env, service e version a partir de DD_ENV, DD_SERVICE e DD_VERSION.
     /// </summary>
     public class DogStatsdMetricasService : IMetricasService

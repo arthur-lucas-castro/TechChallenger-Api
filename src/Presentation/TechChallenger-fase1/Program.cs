@@ -156,10 +156,12 @@ builder.Services.AddScoped<IDomainEventHandler<OrdemServicoDiagnosticoFinalizado
 builder.Services.AddScoped<IDomainEventHandler<OrcamentoRespondidoEvent>, OrcamentoRespondidoHandler>();
 builder.Services.AddScoped<IDomainEventHandler<OrdemServicoIniciadaEvent>, OrdemServicoIniciadaHandler>();
 
-// DD_AGENT_HOST é injetado no pod pelo admission controller do Datadog. Sem ele
-// (execução local, docker-compose), as métricas são descartadas.
-var datadogAgentHost = builder.Configuration["DD_AGENT_HOST"];
-if (string.IsNullOrWhiteSpace(datadogAgentHost))
+// O admission controller do Datadog injeta no pod DD_DOGSTATSD_URL (socket unix, padrão do
+// chart) ou DD_AGENT_HOST (modo hostip). Sem nenhum dos dois (execução local, docker-compose),
+// as métricas são descartadas.
+var (statsdServidor, statsdPorta) = EnderecoDogStatsd.Resolver(
+    builder.Configuration["DD_DOGSTATSD_URL"], builder.Configuration["DD_AGENT_HOST"]);
+if (statsdServidor is null)
 {
     builder.Services.AddSingleton<IMetricasService, MetricasDesabilitadasService>();
 }
@@ -168,11 +170,14 @@ else
     builder.Services.AddSingleton<IDogStatsd>(_ =>
     {
         var statsd = new DogStatsdService();
-        statsd.Configure(new StatsdConfig
+        var config = new StatsdConfig
         {
-            StatsdServerName = datadogAgentHost,
+            StatsdServerName = statsdServidor,
             Prefix = DogStatsdMetricasService.Prefixo
-        });
+        };
+        if (statsdPorta is not null)
+            config.StatsdPort = statsdPorta.Value;
+        statsd.Configure(config);
         return statsd;
     });
     builder.Services.AddSingleton<IMetricasService, DogStatsdMetricasService>();

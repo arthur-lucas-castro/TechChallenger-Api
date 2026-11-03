@@ -17,7 +17,7 @@ data:
   Email__FromName: "TechChallenger Oficina"
   Email__TentativasMaximas: "3"
   Email__DelayInicialSegundos: "2"
-  # Lidos pelo tracer .NET injetado pelo Datadog. DD_AGENT_HOST, DD_ENV, DD_SERVICE
+  # Lidos pelo tracer .NET injetado pelo Datadog. DD_DOGSTATSD_URL, DD_ENV, DD_SERVICE
   # e DD_VERSION são preenchidos pelo admission controller a partir dos labels do pod.
   DD_LOGS_INJECTION: "true"
   DD_RUNTIME_METRICS_ENABLED: "true"

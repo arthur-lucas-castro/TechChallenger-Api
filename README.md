@@ -145,6 +145,24 @@ dotnet run --project src/Presentation/TechChallenger-fase1
 dotnet test src/TechChallenger-fase1.sln --filter "FullyQualifiedName~Tests"
 ```
 
+### Teste ponta a ponta pelo API Gateway
+
+[docs/TechChallenger-Gateway-E2E.postman_collection.json](docs/TechChallenger-Gateway-E2E.postman_collection.json) percorre o sistema publicado sempre pelo gateway, em 35 requisições:
+
+1. healthcheck e versão;
+2. login do Adm na Lambda (com e sem senha válida), rotas protegidas sem token e com token inválido, CPF inválido e sem cadastro;
+3. cadastro de cliente, veículo, serviço, peça e estoque (CPF e placa aleatórios, então pode ser repetida);
+4. autenticação do cliente por CPF, consumo de rota protegida e bloqueio de rota de Adm (403);
+5. ordem de serviço de `Recebida` a `Entregue`, com o orçamento aprovado pelo próprio cliente;
+6. falhas esperadas (transição inválida, OS e serviço inexistentes);
+7. refresh com rotação, recusa do refresh reutilizado e logout.
+
+```bash
+newman run docs/TechChallenger-Gateway-E2E.postman_collection.json \
+  --env-var baseUrl=<output api_gateway_endpoint do infra-kubernetes> \
+  --env-var admSenha=<senha do Adm>
+```
+
 ## Deploy em Kubernetes
 
 Manifestos em [k8s/](k8s). Os detalhes de cada arquivo estão em [docs/K8S.md](docs/K8S.md).
@@ -195,7 +213,7 @@ A estratégia completa, incluindo por que não se usa a integração AWS do Data
 | **Métricas de negócio** | DogStatsD para o agente do node: `oficina.os.criada`, `oficina.os.tempo_no_status`, `oficina.api.falha`, `oficina.integracao.falha` e `oficina.integracao.retentativa` (tabela em [docs/K8S.md](docs/K8S.md)) |
 | **Healthcheck** | `GET /health`, usado pelas probes do Kubernetes e pelo teste de uptime |
 
-Sem o agente (execução local e docker-compose), `DD_AGENT_HOST` fica vazio e as métricas são descartadas; os logs continuam em JSON no console.
+Sem o agente (execução local e docker-compose), não há `DD_DOGSTATSD_URL` nem `DD_AGENT_HOST`, e as métricas são descartadas; os logs continuam em JSON no console.
 
 Pré-requisitos no cluster, todos do **infra-kubernetes**: nodes `t3.small`, API key no SSM e o workflow `datadog.yml` executado antes do deploy desta API. O tracer só é injetado em pods criados depois que o agente está no ar; o `ci-cd.yml` já faz `rollout restart` a cada deploy.
 

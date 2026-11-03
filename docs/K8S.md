@@ -61,13 +61,13 @@ Os `resources.requests`/`limits` (100m/128Mi de request, 250m/256Mi de limit) s�
 
 **Datadog.** Com o agente instalado no cluster (workflow `datadog.yml` do [TechChallenger-infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes)), o pod é instrumentado sem mudança no Dockerfile:
 
-- o label `admission.datadoghq.com/enabled: "true"` faz o Cluster Agent injetar o tracer .NET, na versão fixada pela annotation `admission.datadoghq.com/dotnet-lib.version`, e preencher `DD_AGENT_HOST`;
+- o label `admission.datadoghq.com/enabled: "true"` faz o Cluster Agent injetar o tracer .NET, na versão fixada pela annotation `admission.datadoghq.com/dotnet-lib.version`, e montar no pod os sockets do agente (`DD_TRACE_AGENT_URL` e `DD_DOGSTATSD_URL`, em `/var/run/datadog/`);
 - os labels `tags.datadoghq.com/env|service|version` viram `DD_ENV`, `DD_SERVICE` e `DD_VERSION`. A versão é o `VERSION_PLACEHOLDER`, trocado pela pipeline pela versão da release, como o `IMAGE_PLACEHOLDER`;
 - a annotation `ad.datadoghq.com/techchallenger-api.logs` marca os logs com `source:csharp`, que ativa o pipeline de logs C# do Datadog.
 
 Por causa do tracer, a memória subiu para 192Mi de request e 384Mi de limit. Isso exige nodes `t3.small`, que o agente Datadog já exige. Sem o agente no cluster, o label e as annotations não têm efeito.
 
-A API também envia métricas de negócio por DogStatsD ao agente do node (`DD_AGENT_HOST`, UDP 8125). Sem `DD_AGENT_HOST`, como na execução local, elas são descartadas:
+A API também envia métricas de negócio por DogStatsD ao agente do node, pelo socket de `DD_DOGSTATSD_URL` (ou por UDP em `DD_AGENT_HOST`, se o agente estiver no modo hostip; ver `EnderecoDogStatsd`). Sem nenhuma das duas, como na execução local, elas são descartadas:
 
 | Métrica | Tipo | Tags | Origem |
 |---|---|---|---|
