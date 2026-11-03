@@ -89,6 +89,41 @@ public class OrdemServicoTests
         Assert.Equal(StatusOrdemServico.EmDiagnostico, evento.NovoStatus);
     }
 
+    [Fact]
+    public void PrimeiraTransicao_DataEntradaStatusAnteriorEhDataCriacao()
+    {
+        // Arrange
+        var dataCriacao = new DateTime(2026, 1, 10, 8, 0, 0, DateTimeKind.Utc);
+        var os = CriarOrdem(StatusOrdemServico.Recebida);
+        os.DataCriacao = dataCriacao;
+
+        // Act
+        os.IniciarDiagnostico();
+
+        // Assert
+        var evento = os.GetDomainEvents().OfType<OrdemServicoStatusAlteradoEvent>().Single();
+        Assert.Equal(dataCriacao, evento.DataEntradaStatusAnterior);
+    }
+
+    [Fact]
+    public void TransicaoSeguinte_DataEntradaStatusAnteriorEhUltimaAlteracao()
+    {
+        // Arrange
+        var entradaEmDiagnostico = new DateTime(2026, 1, 10, 9, 30, 0, DateTimeKind.Utc);
+        var os = CriarOrdem(StatusOrdemServico.EmDiagnostico);
+        os.DataCriacao = entradaEmDiagnostico.AddHours(-1);
+        os.DataUltimaAlteracao = entradaEmDiagnostico;
+
+        // Act
+        os.FinalizarDiagnostico();
+
+        // Assert
+        var evento = os.GetDomainEvents().OfType<OrdemServicoStatusAlteradoEvent>().Single();
+        Assert.Equal(StatusOrdemServico.EmDiagnostico, evento.StatusAnterior);
+        Assert.Equal(entradaEmDiagnostico, evento.DataEntradaStatusAnterior);
+        Assert.Equal(os.DataUltimaAlteracao, evento.DataAlteracao);
+    }
+
     // ── FinalizarDiagnostico ─────────────────────────────────────────────────
 
     [Fact]

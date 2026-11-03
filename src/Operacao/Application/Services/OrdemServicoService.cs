@@ -9,6 +9,7 @@ using Catalogo.Application.Services.Interfaces;
 using Catalogo.Application.DTOs;
 using Atendimento.Application.Services.Interfaces;
 using Operacao.Domain.Excecoes;
+using Compartilhado.Application.Services.Interfaces;
 
 namespace Operacao.Application.Services
 {
@@ -20,8 +21,9 @@ namespace Operacao.Application.Services
         private readonly IDomainEventDispatcher _dispatcher;
         private readonly IClienteService _clienteService;
         private readonly IVeiculoService _veiculoService;
+        private readonly IMetricasService _metricas;
 
-        public OrdemServicoService(IOrdemServicoRepositorio repositorio, IServicoService servicoService, IPecaService pecaService, IDomainEventDispatcher dispatcher, IClienteService clienteService, IVeiculoService veiculoService)
+        public OrdemServicoService(IOrdemServicoRepositorio repositorio, IServicoService servicoService, IPecaService pecaService, IDomainEventDispatcher dispatcher, IClienteService clienteService, IVeiculoService veiculoService, IMetricasService metricas)
         {
             _repositorio = repositorio;
             _servicoService = servicoService;
@@ -29,6 +31,7 @@ namespace Operacao.Application.Services
             _dispatcher = dispatcher;
             _clienteService = clienteService;
             _veiculoService = veiculoService;
+            _metricas = metricas;
         }
 
         public async Task<OrdemServicoResponseDto?> ObterPorIdAsync(int id)
@@ -159,7 +162,9 @@ namespace Operacao.Application.Services
                 ordemServico.AdicionarPeca(item.PecaId, peca.Nome, item.Quantidade, (Dinheiro)peca.PrecoVenda);
             }
 
-            return await _repositorio.InsertAsync(ordemServico);
+            var id = await _repositorio.InsertAsync(ordemServico);
+            _metricas.OrdemServicoCriada();
+            return id;
         }
 
         public Task<bool> ExcluirAsync(int id) => _repositorio.DeleteAsync(id);

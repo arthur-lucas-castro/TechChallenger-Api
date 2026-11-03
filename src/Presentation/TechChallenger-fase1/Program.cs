@@ -30,6 +30,8 @@ using Npgsql;
 using Compartilhado.Domain.ValueObjects;
 using Compartilhado.Infrastructure.Email;
 using Compartilhado.Presentation.Middlewares;
+using Compartilhado.Infrastructure.Metricas;
+using StatsdClient;
 using Serilog;
 using Serilog.Events;
 using Serilog.Templates;
@@ -153,6 +155,35 @@ builder.Services.AddScoped<IOrdemServicoService, OrdemServicoService>();
 builder.Services.AddScoped<IDomainEventHandler<OrdemServicoDiagnosticoFinalizadoEvent>, DiagnosticoFinalizadoHandler>();
 builder.Services.AddScoped<IDomainEventHandler<OrcamentoRespondidoEvent>, OrcamentoRespondidoHandler>();
 builder.Services.AddScoped<IDomainEventHandler<OrdemServicoIniciadaEvent>, OrdemServicoIniciadaHandler>();
+
+// O admission controller do Datadog injeta no pod DD_DOGSTATSD_URL (socket unix, padrão do
+// chart) ou DD_AGENT_HOST (modo hostip). Sem nenhum dos dois (execução local, docker-compose),
+// as métricas são descartadas.
+var (statsdServidor, statsdPorta) = EnderecoDogStatsd.Resolver(
+    builder.Configuration["DD_DOGSTATSD_URL"], builder.Configuration["DD_AGENT_HOST"]);
+if (statsdServidor is null)
+{
+    builder.Services.AddSingleton<IMetricasService, MetricasDesabilitadasService>();
+}
+else
+{
+    builder.Services.AddSingleton<IDogStatsd>(_ =>
+    {
+        var statsd = new DogStatsdService();
+        var config = new StatsdConfig
+        {
+            StatsdServerName = statsdServidor,
+            Prefix = DogStatsdMetricasService.Prefixo
+        };
+        if (statsdPorta is not null)
+            config.StatsdPort = statsdPorta.Value;
+        statsd.Configure(config);
+        return statsd;
+    });
+    builder.Services.AddSingleton<IMetricasService, DogStatsdMetricasService>();
+}
+// Antes da notificação por e-mail: uma falha no envio não impede o registro da métrica.
+builder.Services.AddScoped<IDomainEventHandler<OrdemServicoStatusAlteradoEvent>, MetricasStatusOrdemServicoHandler>();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();

@@ -15,7 +15,7 @@ namespace Compartilhado.Infrastructure.Email
         private readonly ILogger<SmtpEmailService> _logger;
         private readonly IAsyncPolicy _retryPolicy;
 
-        public SmtpEmailService(IOptions<EmailSettings> options, ILogger<SmtpEmailService> logger)
+        public SmtpEmailService(IOptions<EmailSettings> options, ILogger<SmtpEmailService> logger, IMetricasService metricas)
         {
             _settings = options.Value;
             _logger = logger;
@@ -27,7 +27,10 @@ namespace Compartilhado.Infrastructure.Email
                     _settings.TentativasMaximas,
                     tentativa => TimeSpan.FromSeconds(_settings.DelayInicialSegundos * Math.Pow(2, tentativa - 1)),
                     (ex, delay, tentativa, _) =>
-                        _logger.LogWarning(ex, "Falha ao enviar e-mail (tentativa {Tentativa}), retry em {Delay}.", tentativa, delay));
+                    {
+                        _logger.LogWarning(ex, "Falha ao enviar e-mail (tentativa {Tentativa}), retry em {Delay}.", tentativa, delay);
+                        metricas.RetentativaIntegracao("smtp", "envio_email");
+                    });
         }
 
         public async Task EnviarAsync(string destinatario, string assunto, string corpo, CancellationToken ct = default)
