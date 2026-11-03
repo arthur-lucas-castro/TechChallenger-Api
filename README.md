@@ -74,32 +74,34 @@ O envio de e-mail (`Compartilhado.Infrastructure.Email`, via MailKit/SMTP) é **
 
 ## Fluxo de deploy
 
-Automatizado via GitHub Actions ([.github/workflows/](.github/workflows)):
+Automatizado via GitHub Actions ([.github/workflows/](.github/workflows)). O deploy em produção acontece **sozinho, no merge do PR da release na `main`**:
 
 ```
-1. Pull Request  ──────────────►  ci-cd.yml: build-and-test
-                                   (dotnet build + dotnet test)
+feat/* ──PR──► release/X.Y.Z ──PR──► main
+   │                 │                  │
+   │                 │                  └─► push na main (merge) ── ci-cd.yml
+   │                 │                        ├─► build-and-test
+   │                 │                        ├─► resolve-version: o commit veio de um PR de
+   │                 │                        │     release/X.Y.Z? sim → versão X.Y.Z; não → para aqui
+   │                 │                        ├─► build-and-push-image
+   │                 │                        │     dotnet publish → docker build → push no ECR (tag X.Y.Z)
+   │                 │                        └─► deploy-k8s
+   │                 │                              kubectl apply: configmap, secret, deployment,
+   │                 │                              service, hpa → rollout status
+   │                 └─► PR: build-and-test
+   └─► PR: build-and-test
 
-2. workflow_dispatch em branch    ci-cd.yml (confirm_deploy=yes)
-   release/X.Y.Z          │
-                           ├──► build-and-test
-                           ├──► build-and-push-image
-                           │       dotnet publish → docker build → push no ECR
-                           ├──► deploy-k8s
-                           │       kubectl apply: configmap, secret, deployment,
-                           │       service, hpa → rollout status
-                           └──► merge-to-main
-                                   PR automático release → main (auto-merge)
-
-  database-migration.yml → aplica database/init/01_schema.sql no RDS via Job k8s
+workflow_dispatch numa release/X.Y.Z (confirm_deploy=yes) → mesmo deploy, para redeploy ou rollback
+database-migration.yml → aplica database/init/01_schema.sql no RDS via Job k8s
 ```
+
+A versão publicada vem do nome da branch de release do PR mergeado (`release/1.4.2` → imagem `1.4.2`, label `tags.datadoghq.com/version: "1.4.2"`). Merges na `main` que não vêm de uma `release/X.Y.Z` rodam build e testes, mas não publicam. Dois deploys seguidos não se sobrepõem: o segundo espera o primeiro (`concurrency: deploy-eks`).
 
 ### Secrets e variables necessários (environment `aws-deploy`)
 
 | Nome | Origem |
 |---|---|
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Credenciais do Learner Lab (renovar a cada sessão) |
-| `RELEASE_MERGE_TOKEN` (opcional) | PAT para o auto-merge da release |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Credenciais do Learner Lab. Expiram a cada sessão: renove antes de mergear uma release, ou o deploy automático falha na autenticação da AWS |
 
 O nome do cluster EKS e do repositório ECR não são secrets: ficam fixos no `env` dos workflows (`techchallenger-fase1`, iguais às variáveis `cluster_name` e `ecr_repository_name` do infra-kubernetes). A URL do ECR, que inclui o ID da conta AWS, é descoberta pela pipeline com `aws ecr describe-repositories`.
 
