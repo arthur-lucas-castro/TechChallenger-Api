@@ -30,11 +30,13 @@ namespace Operacao.Domain.Entities
         private void TransicionarPara(StatusOrdemServico novoStatus)
         {
             var statusAnterior = Status;
+            // A ordem nasce como Recebida sem DataUltimaAlteracao: a entrada nesse status é a criação.
+            var dataEntradaStatusAnterior = DataUltimaAlteracao ?? DataCriacao;
             Status = novoStatus;
             DataUltimaAlteracao = DateTime.UtcNow;
 
             AddDomainEvent(new Events.OrdemServicoStatusAlteradoEvent(
-                Id, ClienteId, statusAnterior, novoStatus, DataUltimaAlteracao.Value));
+                Id, ClienteId, statusAnterior, novoStatus, DataUltimaAlteracao.Value, dataEntradaStatusAnterior));
         }
 
         public void IniciarDiagnostico()

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Compartilhado.Infrastructure.Metricas</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DogStatsD-CSharp-Client" Version="9.2.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\Compartilhado.Application.csproj" />
+  </ItemGroup>
+</Project>

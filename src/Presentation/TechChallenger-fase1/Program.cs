@@ -29,6 +29,12 @@ using Operacao.Infrastructure.Repositories;
 using Npgsql;
 using Compartilhado.Domain.ValueObjects;
 using Compartilhado.Infrastructure.Email;
+using Compartilhado.Presentation.Middlewares;
+using Compartilhado.Infrastructure.Metricas;
+using StatsdClient;
+using Serilog;
+using Serilog.Events;
+using Serilog.Templates;
 
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -43,6 +49,16 @@ string[] swaggerXmlFiles =
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
+
+// Uma linha JSON por evento, lida pelo agente Datadog. "level" e "message" são
+// atributos reservados do Datadog; rest() traz as demais propriedades, como o
+// CorrelationId e os dd.trace_id/dd.span_id injetados pelo tracer (DD_LOGS_INJECTION).
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(new ExpressionTemplate(
+        "{ {timestamp: @t, level: @l, message: @m, exception: @x, logger: SourceContext, ..rest()} }\n")));
 
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
@@ -140,6 +156,38 @@ builder.Services.AddScoped<IDomainEventHandler<OrdemServicoDiagnosticoFinalizado
 builder.Services.AddScoped<IDomainEventHandler<OrcamentoRespondidoEvent>, OrcamentoRespondidoHandler>();
 builder.Services.AddScoped<IDomainEventHandler<OrdemServicoIniciadaEvent>, OrdemServicoIniciadaHandler>();
 
+// O admission controller do Datadog injeta no pod DD_DOGSTATSD_URL (socket unix, padrão do
+// chart) ou DD_AGENT_HOST (modo hostip). Sem nenhum dos dois (execução local, docker-compose),
+// as métricas são descartadas.
+var (statsdServidor, statsdPorta) = EnderecoDogStatsd.Resolver(
+    builder.Configuration["DD_DOGSTATSD_URL"], builder.Configuration["DD_AGENT_HOST"]);
+if (statsdServidor is null)
+{
+    builder.Services.AddSingleton<IMetricasService, MetricasDesabilitadasService>();
+}
+else
+{
+    builder.Services.AddSingleton<IDogStatsd>(_ =>
+    {
+        var statsd = new DogStatsdService();
+        var config = new StatsdConfig
+        {
+            StatsdServerName = statsdServidor,
+            Prefix = DogStatsdMetricasService.Prefixo
+        };
+        // Sem a telemetria do próprio cliente, que sairia como oficina.datadog.dogstatsd.client.*
+        // e contaria como métrica customizada na conta.
+        config.Advanced.TelemetryFlushInterval = null;
+        if (statsdPorta is not null)
+            config.StatsdPort = statsdPorta.Value;
+        statsd.Configure(config);
+        return statsd;
+    });
+    builder.Services.AddSingleton<IMetricasService, DogStatsdMetricasService>();
+}
+// Antes da notificação por e-mail: uma falha no envio não impede o registro da métrica.
+builder.Services.AddScoped<IDomainEventHandler<OrdemServicoStatusAlteradoEvent>, MetricasStatusOrdemServicoHandler>();
+
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IDomainEventHandler<OrdemServicoStatusAlteradoEvent>, NotificacaoStatusOrdemServicoHandler>();
@@ -157,7 +205,17 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseMiddleware<Compartilhado.Presentation.Middlewares.ExceptionMiddleware>();
+// Correlação primeiro, para o id estar no escopo de todos os logs abaixo, inclusive
+// o log de request, que fica antes do ExceptionMiddleware para registrar o status final.
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseSerilogRequestLogging(options =>
+{
+    options.GetLevel = (http, _, ex) =>
+        ex is not null || http.Response.StatusCode >= 500 ? LogEventLevel.Error
+        : http.Request.Path.StartsWithSegments("/health") ? LogEventLevel.Verbose
+        : LogEventLevel.Information;
+});
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

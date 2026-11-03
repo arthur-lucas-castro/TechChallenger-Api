@@ -41,11 +41,13 @@ Expõe a API localmente via `NodePort` na porta 8080.
 
 ### `secret.yaml`
 
-Equivalente ao Secret local, mas a `ConnectionStrings__Default` aponta para o endpoint do RDS (placeholders `<rds-endpoint>`, `<rds-username>`, `<rds-password>`, preenchidos a partir dos outputs do repositório infra-database). Não contém `POSTGRES_USER`/`POSTGRES_PASSWORD` porque não há pod de banco neste ambiente — quem gerencia essas credenciais é o RDS.
+Não há arquivo no repositório: a pipeline gera o Secret `techchallenger-api-secret` com os valores do SSM Parameter Store, publicados pelo infra-kubernetes. É equivalente ao Secret local, mas a `ConnectionStrings__Default` aponta para o endpoint do RDS. Não contém `POSTGRES_USER`/`POSTGRES_PASSWORD` porque não há pod de banco neste ambiente — quem gerencia essas credenciais é o RDS.
 
 ### `configmap.yaml`
 
 Mesmas variáveis não sensíveis do ambiente local (ambiente ASP.NET Core, URLs, configuração de JWT), sem `POSTGRES_DB` — o nome do banco já vem embutido na connection string do Secret, e não há pod de Postgres para consumi-lo separadamente.
+
+Inclui também a configuração do tracer Datadog: `DD_LOGS_INJECTION` (põe `dd.trace_id`/`dd.span_id` nos logs, ligando log e trace), `DD_RUNTIME_METRICS_ENABLED` (GC, threads e heap do .NET) e `DD_TRACE_HEADER_TAGS`, que grava o `x-correlation-id` como tag `correlation_id` no span.
 
 ### `deployment.yaml`
 
@@ -56,6 +58,28 @@ Os `resources.requests`/`limits` (100m/128Mi de request, 250m/256Mi de limit) s�
 - O allocatable real fica em ~700-800Mi de memória e ~940m de CPU depois do `kube-reserved`/`system-reserved` da AMI do EKS (o restante é consumido por `kubelet`, `kube-proxy`, `aws-node`/VPC CNI, etc.).
 - 2 réplicas × 128Mi/100m de request = 256Mi/200m no total, o que cabe em um único `t3.micro` junto com os daemonsets do sistema — mas para ter HA de verdade (sobreviver à perda de 1 node) é necessário ter pelo menos 2 nodes no node group, não só 2 réplicas.
 - Os limits (256Mi/250m) evitam que um pod estoure a memória do node sozinho; se no futuro for adicionado HPA ou mais pods no mesmo node, revisar esses números com `kubectl top nodes/pods`.
+
+**Datadog.** Com o agente instalado no cluster (workflow `datadog.yml` do [TechChallenger-infra-kubernetes](https://github.com/arthur-lucas-castro/TechChallenger-infra-kubernetes)), o pod é instrumentado sem mudança no Dockerfile:
+
+- o label `admission.datadoghq.com/enabled: "true"` faz o Cluster Agent injetar o tracer .NET, na versão fixada pela annotation `admission.datadoghq.com/dotnet-lib.version`, e montar no pod os sockets do agente (`DD_TRACE_AGENT_URL` e `DD_DOGSTATSD_URL`, em `/var/run/datadog/`);
+- os labels `tags.datadoghq.com/env|service|version` viram `DD_ENV`, `DD_SERVICE` e `DD_VERSION`. A versão é o `VERSION_PLACEHOLDER`, trocado pela pipeline pela versão da release, como o `IMAGE_PLACEHOLDER`;
+- a annotation `ad.datadoghq.com/techchallenger-api.logs` marca os logs com `source:csharp`, que ativa o pipeline de logs C# do Datadog.
+
+Por causa do tracer, a memória subiu para 192Mi de request e 384Mi de limit. Isso exige nodes `t3.small`, que o agente Datadog já exige. Sem o agente no cluster, o label e as annotations não têm efeito.
+
+A API também envia métricas de negócio por DogStatsD ao agente do node, pelo socket de `DD_DOGSTATSD_URL` (ou por UDP em `DD_AGENT_HOST`, se o agente estiver no modo hostip; ver `EnderecoDogStatsd`). Sem nenhuma das duas, como na execução local, elas são descartadas:
+
+| Métrica | Tipo | Tags | Origem |
+|---|---|---|---|
+| `oficina.os.abertas` | distribution (valor 1; consultar com `count:`) | — | `OrdemServicoService.CriarAsync`. Substitui a antiga `oficina.os.criada` (count): o Datadog guardava o count como taxa e o `.as_count()` não a reconvertia |
+| `oficina.os.tempo_no_status` | distribution (segundos) | `status` (status que a OS deixou) | `MetricasStatusOrdemServicoHandler`, a cada `OrdemServicoStatusAlteradoEvent` |
+| `oficina.api.falha` | count | `controller`, `acao`, `tipo` (`dominio`, `validacao`, `nao_encontrado`, `operacao_invalida`, `erro_interno`) | `ExceptionMiddleware`. Falha de banco (`DbException` em qualquer nível) vira 500 e `erro_interno` |
+| `oficina.integracao.falha` | distribution (valor 1; consultar com `count:`) | `integracao` (`smtp`, `postgres`), `operacao` | `NotificacaoStatusOrdemServicoHandler`, quando a notificação da OS não sai. A Lambda de autenticação envia a mesma métrica com `integracao:lambda_auth` |
+| `oficina.integracao.retentativa` | count | `integracao`, `operacao` | `SmtpEmailService`, a cada nova tentativa do Polly |
+
+O tempo em cada status é a diferença entre a transição de saída e a de entrada (`DataUltimaAlteracao`, ou `DataCriacao` para `Recebida`). Para o dashboard, Diagnóstico = `status:EmDiagnostico`, Execução = `status:EmExecucao` e Finalização = `status:Finalizada` (da finalização até a entrega).
+
+Os logs da API saem em JSON (Serilog), uma linha por evento, com `timestamp`, `level`, `message`, `logger`, `CorrelationId` e as demais propriedades. O `CorrelationIdMiddleware` reaproveita o `x-correlation-id` enviado pelo API Gateway (o `requestId` dos access logs do gateway), ou gera um novo, e devolve o id no header da resposta.
 
 ### `hpa.yaml`
 
