@@ -51,7 +51,7 @@ Inclui também a configuração do tracer Datadog: `DD_LOGS_INJECTION` (põe `dd
 
 ### `deployment.yaml`
 
-Deployment da API para o ambiente AWS: 2 réplicas, `image: IMAGE_PLACEHOLDER` (substituído pela pipeline de CI/CD pela URL da imagem no ECR), `imagePullPolicy: Always` (garante que a tag mais recente publicada seja sempre puxada). Mesmas probes de `/health` do ambiente local.
+Deployment da API para o ambiente AWS: 1 réplica inicial (o HPA ajusta entre 1 e 3), `image: IMAGE_PLACEHOLDER` (substituído pela pipeline de CI/CD pela URL da imagem no ECR), `imagePullPolicy: Always` (garante que a tag mais recente publicada seja sempre puxada). Mesmas probes de `/health` do ambiente local.
 
 Os `resources.requests`/`limits` (100m/128Mi de request, 250m/256Mi de limit) são mantidos iguais ao ambiente local porque já são enxutos e cabem confortavelmente em um node `t3.micro` (1 vCPU / 1GiB RAM). Referências de dimensionamento para `t3.micro`:
 
@@ -83,7 +83,7 @@ Os logs da API saem em JSON (Serilog), uma linha por evento, com `timestamp`, `l
 
 ### `hpa.yaml`
 
-HorizontalPodAutoscaler para o Deployment da API: entre 2 e 5 réplicas, escalando por utilização média de CPU (60%) ou memória (70%). Funciona em conjunto com o `node_group_max_size = 3` do node group (repositório infra-kubernetes), que permite o node group crescer para acomodar as réplicas extras.
+HorizontalPodAutoscaler para o Deployment da API: entre 1 e 3 réplicas, escalando por utilização média de CPU (60% do request) ou memória (70% do request). Com nodes `t3.small`, as 3 réplicas cabem nos 2 nodes do node group junto com os pods de sistema e do Datadog. O node group não cresce sozinho: não há Cluster Autoscaler, então o número de nodes é o `node_group_desired_size` do infra-kubernetes. Decisão, dimensionamento e limites em [ADR-006](adr/ADR-006-escalabilidade-com-hpa.md).
 
 ### metrics-server (fora deste repositório)
 

@@ -8,8 +8,7 @@ metadata:
     tags.datadoghq.com/service: techchallenger-api
     tags.datadoghq.com/version: VERSION_PLACEHOLDER
 spec:
-  # 1 réplica: com t3.micro cada node aceita só 4 pods (limite de IPs do VPC
-  # CNI) e os pods de sistema ocupam 7 dos 8 slots do cluster.
+  # Réplica inicial; a partir daí o HPA (hpa.yaml) decide entre 1 e 3 (ADR-006).
   replicas: 1
   strategy:
     type: RollingUpdate
