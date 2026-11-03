@@ -8,8 +8,8 @@ metadata:
     tags.datadoghq.com/service: techchallenger-api
     tags.datadoghq.com/version: VERSION_PLACEHOLDER
 spec:
-  # Réplica inicial; a partir daí o HPA (hpa.yaml) decide entre 1 e 3 (ADR-006).
-  replicas: 1
+  # Réplicas iniciais; a partir daí o HPA (hpa.yaml) decide entre 2 e 5 (ADR-006).
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
