@@ -175,6 +175,9 @@ else
             StatsdServerName = statsdServidor,
             Prefix = DogStatsdMetricasService.Prefixo
         };
+        // Sem a telemetria do próprio cliente, que sairia como oficina.datadog.dogstatsd.client.*
+        // e contaria como métrica customizada na conta.
+        config.Advanced.TelemetryFlushInterval = null;
         if (statsdPorta is not null)
             config.StatsdPort = statsdPorta.Value;
         statsd.Configure(config);

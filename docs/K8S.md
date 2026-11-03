@@ -71,7 +71,7 @@ A API também envia métricas de negócio por DogStatsD ao agente do node, pelo 
 
 | Métrica | Tipo | Tags | Origem |
 |---|---|---|---|
-| `oficina.os.criada` | count | — | `OrdemServicoService.CriarAsync` |
+| `oficina.os.abertas` | distribution (valor 1; consultar com `count:`) | — | `OrdemServicoService.CriarAsync`. Substitui a antiga `oficina.os.criada` (count): o Datadog guardava o count como taxa e o `.as_count()` não a reconvertia |
 | `oficina.os.tempo_no_status` | distribution (segundos) | `status` (status que a OS deixou) | `MetricasStatusOrdemServicoHandler`, a cada `OrdemServicoStatusAlteradoEvent` |
 | `oficina.api.falha` | count | `controller`, `acao`, `tipo` (`dominio`, `validacao`, `nao_encontrado`, `operacao_invalida`, `erro_interno`) | `ExceptionMiddleware`. Falha de banco (`DbException` em qualquer nível) vira 500 e `erro_interno` |
 | `oficina.integracao.falha` | distribution (valor 1; consultar com `count:`) | `integracao` (`smtp`, `postgres`), `operacao` | `NotificacaoStatusOrdemServicoHandler`, quando a notificação da OS não sai. A Lambda de autenticação envia a mesma métrica com `integracao:lambda_auth` |

@@ -11,13 +11,13 @@ public class DogStatsdMetricasServiceTests
     public DogStatsdMetricasServiceTests() => _service = new DogStatsdMetricasService(_statsdMock.Object);
 
     [Fact]
-    public void OrdemServicoCriada_IncrementaContador()
+    public void OrdemServicoCriada_EnviaDistribuicaoComValorUm()
     {
         // Act
         _service.OrdemServicoCriada();
 
         // Assert
-        _statsdMock.Verify(s => s.Increment("os.criada", 1, 1.0, null, null, null), Times.Once);
+        _statsdMock.Verify(s => s.Distribution("os.abertas", 1.0, 1.0, null, null), Times.Once);
     }
 
     [Fact]

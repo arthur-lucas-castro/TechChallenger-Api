@@ -210,7 +210,7 @@ A estratégia completa, incluindo por que não se usa a integração AWS do Data
 | **Traces e latência por rota (APM)** | Tracer .NET injetado no pod pelo Cluster Agent do Datadog (label `admission.datadoghq.com/enabled`), sem mudar o Dockerfile. Queries no RDS aparecem como spans `postgresql` |
 | **Logs estruturados** | Serilog em JSON no stdout (`timestamp`, `level`, `message`, `logger` e propriedades), lidos pelo agente com `source:csharp` |
 | **Correlação** | `CorrelationIdMiddleware` reaproveita o `x-correlation-id` do API Gateway (o `requestId` dos access logs) ou gera um, devolve no header da resposta e grava em todos os logs da requisição. `DD_LOGS_INJECTION` liga cada log ao trace (`dd.trace_id`) |
-| **Métricas de negócio** | DogStatsD para o agente do node: `oficina.os.criada`, `oficina.os.tempo_no_status`, `oficina.api.falha`, `oficina.integracao.falha` e `oficina.integracao.retentativa` (tabela em [docs/K8S.md](docs/K8S.md)) |
+| **Métricas de negócio** | DogStatsD para o agente do node: `oficina.os.abertas`, `oficina.os.tempo_no_status`, `oficina.api.falha`, `oficina.integracao.falha` e `oficina.integracao.retentativa` (tabela em [docs/K8S.md](docs/K8S.md)) |
 | **Healthcheck** | `GET /health`, usado pelas probes do Kubernetes e pelo teste de uptime |
 
 Sem o agente (execução local e docker-compose), não há `DD_DOGSTATSD_URL` nem `DD_AGENT_HOST`, e as métricas são descartadas; os logs continuam em JSON no console.

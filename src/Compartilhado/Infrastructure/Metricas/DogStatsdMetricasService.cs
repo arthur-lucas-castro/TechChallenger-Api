@@ -16,7 +16,7 @@ namespace Compartilhado.Infrastructure.Metricas
         public DogStatsdMetricasService(IDogStatsd statsd) => _statsd = statsd;
 
         public void OrdemServicoCriada()
-            => _statsd.Increment("os.criada");
+            => _statsd.Distribution("os.abertas", 1);
 
         public void TempoNoStatus(string status, TimeSpan duracao)
             => _statsd.Distribution("os.tempo_no_status", duracao.TotalSeconds, tags: [$"status:{status}"]);

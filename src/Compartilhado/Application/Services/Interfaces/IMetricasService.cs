@@ -5,7 +5,11 @@ namespace Compartilhado.Application.Services.Interfaces
     /// </summary>
     public interface IMetricasService
     {
-        /// <summary><c>oficina.os.criada</c> (count): volume de ordens de serviço abertas.</summary>
+        /// <summary>
+        /// <c>oficina.os.abertas</c> (distribution, valor 1; consultar com <c>count:</c>): volume de ordens de
+        /// serviço abertas. Distribution, e não count, porque o Datadog guarda o count do DogStatsD como taxa
+        /// por segundo e nem sempre o reconverte com <c>.as_count()</c>.
+        /// </summary>
         void OrdemServicoCriada();
 
         /// <summary><c>oficina.os.tempo_no_status</c> (distribution, segundos), tag <c>status</c>: quanto a OS ficou no status que está deixando.</summary>
